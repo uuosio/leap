@@ -2790,3 +2790,86 @@ fc::variant chain_plugin::get_log_trx(const transaction& trx) const {
 } // namespace eosio
 
 FC_REFLECT( eosio::chain_apis::detail::ram_market_exchange_state_t, (ignore1)(ignore2)(ignore3)(core_symbol)(ignore4) )
+
+#include <ipyeos.hpp>
+#include <chain_rpc_api_proxy.hpp>
+
+#define max_abi_time (10000)
+using namespace eosio::chain_apis;
+using namespace eosio;
+
+chain_rpc_api_proxy::chain_rpc_api_proxy(eosio::chain::controller *c) {
+   this->c = c;
+}
+
+chain_rpc_api_proxy::~chain_rpc_api_proxy() {
+
+}
+
+eosio::chain::controller* chain_rpc_api_proxy::chain() {
+    return this->c;
+}
+
+int chain_rpc_api_proxy::get_info(string& result) {
+   auto next = [&result](const fc::exception_ptr& ex) {
+      result = ex->to_detail_string();
+   };
+   try {
+      read_only::get_info_params params;
+      read_only::get_info_results results;
+      auto& cc = *this->chain();
+      std::optional<account_query_db> aqdb;
+      results = read_only(cc, aqdb, fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us), nullptr, nullptr).get_info(params);
+      result = fc::json::to_string(fc::variant(results), fc::time_point::maximum());
+      return 1;
+    } CATCH_AND_CALL(next);
+    return 0;
+}
+
+#define CHAIN_API_RO(api_name) \
+int chain_rpc_api_proxy::api_name(string& params, string& result) { \
+   auto next = [&result](const fc::exception_ptr& ex) { \
+      result = ex->to_detail_string(); \
+      get_ipyeos_proxy()->set_last_error(result); \
+      \
+   }; \
+   try { \
+      auto& cc = *this->chain(); \
+      std::optional<account_query_db> aqdb; \
+      auto _params = fc::json::from_string(params).as<read_only::api_name ## _params>(); \
+      auto _result = read_only(cc, aqdb, fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us), nullptr, nullptr).api_name(_params); \
+      result = fc::json::to_string(fc::variant(_result), fc::time_point::maximum()); \
+      return 1;\
+   } CATCH_AND_CALL(next); \
+   return 0; \
+}
+
+CHAIN_API_RO(get_activated_protocol_features)
+CHAIN_API_RO(get_block)
+CHAIN_API_RO(get_block_header_state)
+CHAIN_API_RO(get_account)
+CHAIN_API_RO(get_code)
+CHAIN_API_RO(get_code_hash)
+CHAIN_API_RO(get_abi)
+CHAIN_API_RO(get_raw_code_and_abi)
+CHAIN_API_RO(get_raw_abi)
+CHAIN_API_RO(get_table_rows)
+CHAIN_API_RO(get_table_by_scope)
+CHAIN_API_RO(get_currency_balance)
+CHAIN_API_RO(get_currency_stats)
+CHAIN_API_RO(get_producers)
+CHAIN_API_RO(get_producer_schedule)
+
+CHAIN_API_RO(get_scheduled_transactions)
+CHAIN_API_RO(abi_json_to_bin)
+CHAIN_API_RO(abi_bin_to_json)
+CHAIN_API_RO(get_required_keys)
+CHAIN_API_RO(get_transaction_id)
+
+chain_rpc_api_proxy *new_chain_api_proxy(eosio::chain::controller *c) {
+   return new chain_rpc_api_proxy(c);
+}
+
+extern "C" void init_new_chain_api() {
+   get_ipyeos_proxy()->new_chain_api = new_chain_api_proxy;
+}

@@ -12,6 +12,7 @@
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/deep_mind.hpp>
 #include <boost/container/flat_set.hpp>
+#include "ipyeos.hpp"
 
 using boost::container::flat_set;
 
@@ -52,6 +53,11 @@ apply_context::apply_context(controller& con, transaction_context& trx_ctx, uint
 
 void apply_context::exec_one()
 {
+   auto cleanup = fc::make_scoped_exit([&](){
+      get_ipyeos_proxy()->get_apply_context_proxy()->set_context(nullptr);
+   });
+   get_ipyeos_proxy()->get_apply_context_proxy()->set_context(this);
+
    auto start = fc::time_point::now();
 
    digest_type act_digest;
@@ -95,7 +101,22 @@ void apply_context::exec_one()
                   control.check_action_list( act->account, act->name );
                }
                try {
-                  control.get_wasm_interface().apply( receiver_account->code_hash, receiver_account->vm_type, receiver_account->vm_version, *this );
+                  bool is_native_contract_called = false;
+                  if (get_ipyeos_proxy()->is_native_contracts_enabled()) {
+                     auto timer_pause = fc::make_scoped_exit([&](){
+                        trx_context.resume_billing_timer();
+                     });
+                     trx_context.pause_billing_timer();
+
+                     uint64_t receiver = get_receiver().to_uint64_t();
+                     uint64_t first_receiver = get_action().account.to_uint64_t();
+                     uint64_t action = get_action().name.to_uint64_t();
+                     is_native_contract_called = get_ipyeos_proxy()->call_native_contract(receiver, first_receiver, action);
+                  }
+
+                  if (!is_native_contract_called) {
+                        control.get_wasm_interface().apply( receiver_account->code_hash, receiver_account->vm_type, receiver_account->vm_version, *this );
+                  }
                } catch( const wasm_exit& ) {}
             }
 

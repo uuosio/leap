@@ -183,7 +183,7 @@ add_subdirectory( tests )
 add_subdirectory( tools )
 add_subdirectory( benchmark )
 
-option(DISABLE_WASM_SPEC_TESTS "disable building of wasm spec unit tests" OFF)
+option(DISABLE_WASM_SPEC_TESTS "disable building of wasm spec unit tests" ON)
 
 if (NOT DISABLE_WASM_SPEC_TESTS)
 add_subdirectory( wasm-spec-tests/generated-tests )

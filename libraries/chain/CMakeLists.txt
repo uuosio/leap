@@ -105,6 +105,28 @@ add_library( eosio_chain
               asset.cpp
               snapshot.cpp
               deep_mind.cpp
+              vm_api/vm_api_proxy.cpp
+              vm_api/action.cpp
+              vm_api/authorization.cpp
+              vm_api/cf_system.cpp
+              vm_api/cf_transaction.cpp
+              vm_api/console.cpp
+              vm_api/context_free.cpp
+              vm_api/crypto.cpp
+              vm_api/database.cpp
+              vm_api/privileged.cpp
+              vm_api/permission.cpp
+              vm_api/producer.cpp
+              vm_api/system.cpp
+              vm_api/transaction.cpp
+
+              chain_api/chain_manager.cpp
+              chain_api/chain_proxy.cpp
+              chain_api/chain_rpc_api_proxy.cpp
+              chain_api/ipyeos_proxy.cpp
+              chain_api/native_object.cpp
+              chain_api/ipyeos.cpp
+              chain_api/apply_context_proxy.cpp
 
              ${CHAIN_EOSVMOC_SOURCES}
              ${CHAIN_EOSVM_SOURCES}
@@ -131,7 +153,9 @@ target_link_libraries( eosio_chain PUBLIC fc chainbase Logging IR WAST WASM Runt
 target_include_directories( eosio_chain
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_BINARY_DIR}/include"
                                    "${CMAKE_CURRENT_SOURCE_DIR}/../wasm-jit/Include"
-                            )
+                                   "${CMAKE_CURRENT_SOURCE_DIR}/libraries/eos-vm/include"
+                                   "${CMAKE_CURRENT_SOURCE_DIR}/chain_api"
+                           )
 
 add_library(eosio_chain_wrap INTERFACE )
 target_link_libraries(eosio_chain_wrap INTERFACE eosio_chain)

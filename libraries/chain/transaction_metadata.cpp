@@ -28,4 +28,16 @@ size_t transaction_metadata::get_estimated_size() const {
    return sizeof(*this) + _recovered_pub_keys.size() * sizeof(public_key_type) + packed_trx()->get_estimated_size();
 }
 
+transaction_metadata_ptr transaction_metadata::recover_keys( packed_transaction_ptr trx, const chain_id_type& chain_id)
+{
+   fc::time_point deadline = fc::time_point::maximum();
+   uint32_t max_variable_sig_size = UINT32_MAX;
+
+   check_variable_sig_size( trx, max_variable_sig_size );
+   const signed_transaction& trn = trx->get_signed_transaction();
+   flat_set<public_key_type> recovered_pub_keys;
+   fc::microseconds cpu_usage = trn.get_signature_keys( chain_id, deadline, recovered_pub_keys );
+   return std::make_shared<transaction_metadata>( private_type(), std::move( trx ), cpu_usage, std::move( recovered_pub_keys ));
+}
+
 } } // eosio::chain
