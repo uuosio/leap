@@ -109,8 +109,8 @@ find_package(Boost 1.67 REQUIRED COMPONENTS program_options unit_test_framework 
 if( APPLE AND UNIX )
 # Apple Specific Options Here
     message( STATUS "Configuring Leap on macOS" )
-    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wall -Wno-deprecated-declarations" )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-deprecated-declarations" )
+    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wall -Wno-deprecated-declarations -mavx2" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-deprecated-declarations -mavx2" )
 else()
     # Linux Specific Options Here
     message( STATUS "Configuring Leap on Linux" )

@@ -38,8 +38,8 @@ namespace eosio { namespace chain {
 
    struct block_log_prune_config {
       uint32_t                prune_blocks;                  //number of blocks to prune to when doing a prune
-      size_t                  prune_threshold = 4*1024*1024; //(approximately) how many bytes need to be added before a prune is performed
-      std::optional<size_t>   vacuum_on_close;               //when set, a vacuum is performed on dtor if log contains less than this many live bytes
+      uint32_t                  prune_threshold = 4*1024*1024; //(approximately) how many bytes need to be added before a prune is performed
+      std::optional<uint32_t>   vacuum_on_close;               //when set, a vacuum is performed on dtor if log contains less than this many live bytes
    };
 
    class block_log {
