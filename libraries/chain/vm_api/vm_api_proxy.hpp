@@ -128,7 +128,6 @@ class vm_api_proxy {
         virtual void send_context_free_inline(char *serialized_action, uint32_t size);
         virtual uint64_t  publication_time();
         virtual capi_name current_receiver();
-        virtual void set_action_return_value(const char *data, uint32_t data_size);
 
         //print.h
         virtual void prints( const char* cstr );
@@ -183,10 +182,23 @@ class vm_api_proxy {
         virtual int32_t get_action( uint32_t type, uint32_t index, char* buff, uint32_t size );
         virtual int32_t get_context_free_data( uint32_t index, char* buff, uint32_t size );
 
-        // virtual void call_contract(capi_name contract, const char* args, uint32_t size1);
-        // virtual uint32_t call_contract_get_args(char* args, uint32_t size1);
-        // virtual uint32_t call_contract_set_results(const char* result, uint32_t size1);
-        // virtual uint32_t call_contract_get_results(char* result, uint32_t size1);
+        virtual void set_action_return_value(const char *data, uint32_t data_size);
+        virtual uint32_t get_code_hash(capi_name account, uint32_t struct_version, char* packed_result, uint32_t packed_result_len);
+        virtual uint32_t get_block_num();
+
+        virtual void sha3( const char* data, uint32_t data_len, char* hash, uint32_t hash_len, int32_t keccak );
+        virtual int32_t blake2_f( uint32_t rounds, const char* state, uint32_t state_len, const char* msg, uint32_t msg_len, 
+                        const char* t0_offset, uint32_t t0_len, const char* t1_offset, uint32_t t1_len, int32_t final, char* result, uint32_t result_len);
+        virtual int32_t k1_recover( const char* sig, uint32_t sig_len, const char* dig, uint32_t dig_len, char* pub, uint32_t pub_len);
+        virtual int32_t alt_bn128_add( const char* op1, uint32_t op1_len, const char* op2, uint32_t op2_len, char* result, uint32_t result_len);
+        virtual int32_t alt_bn128_mul( const char* g1, uint32_t g1_len, const char* scalar, uint32_t scalar_len, char* result, uint32_t result_len);
+        virtual int32_t alt_bn128_pair( const char* pairs, uint32_t pairs_len);
+        virtual int32_t mod_exp( const char* base, uint32_t base_len, const char* exp, uint32_t exp_len, const char* mod, uint32_t mod_len, char* result, uint32_t result_len);
+
+        virtual int64_t add_security_group_participants(const char* data, uint32_t datalen);
+        virtual int64_t remove_security_group_participants(const char* data, uint32_t datalen);
+        virtual bool in_active_security_group(const char* data, uint32_t datalen);
+        virtual uint32_t get_active_security_group(char* data, uint32_t datalen);
 
     private:
         std::unique_ptr<webassembly::interface> _interface;

@@ -14,8 +14,3 @@ uint32_t vm_api_proxy::action_data_size() {
 uint64_t vm_api_proxy::current_receiver() {
    return _interface->current_receiver().to_uint64_t();
 }
-
-void vm_api_proxy::set_action_return_value(const char *data, uint32_t data_size) {
-   span<const char> packed_blob(data, data_size);
-    _interface->set_action_return_value(std::move(packed_blob));
-}

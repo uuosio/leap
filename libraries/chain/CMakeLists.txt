@@ -119,6 +119,7 @@ add_library( eosio_chain
               vm_api/producer.cpp
               vm_api/system.cpp
               vm_api/transaction.cpp
+              vm_api/ext.cpp
 
               chain_api/chain_manager.cpp
               chain_api/chain_proxy.cpp
