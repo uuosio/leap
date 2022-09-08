@@ -1,0 +1,55 @@
+name: build ipyeos
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - "v*.*.*"
+  # pull_request:
+  #   branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: macos-12
+    env:
+      IPYEOS_VERSION: 0.2.14
+      SYSTEM_VERSION_COMPAT: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Install llvm@11
+        run: |
+          brew install llvm@11
+      - name: Install boost
+        run: |
+          curl -L https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.tar.bz2 | tar jx
+          cd boost_1_79_0
+          ./bootstrap.sh --prefix=$HOME/boost1.79
+          ./b2 --with-iostreams --with-date_time --with-filesystem --with-system --with-program_options --with-chrono --with-test -j2 install
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_PREFIX_PATH="$HOME/boost1.79" -DCMAKE_BUILD_TYPE=Release ..
+          make -j2
+      - name: Release
+        run: |
+          mkdir -p release/bin
+          mkdir -p release/lib
+          cp build/programs/ipyeos/ipyeos release/bin/ipyeos
+          cp build/libraries/chain_api/libchain_api.dylib release/lib/libchain_api.dylib
+          cp build/libraries/vm_api/libvm_api.dylib release/lib/libvm_api.dylib
+          tar -czf release-macos.tar.gz release
+      - name: release-pyeos
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release-macos.tar.gz

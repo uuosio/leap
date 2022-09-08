@@ -47,10 +47,10 @@ jobs:
           cp build/programs/ipyeos/ipyeos release/bin/ipyeos
           cp build/libraries/chain_api/libchain_api.so release/lib/libchain_api.so
           cp build/libraries/vm_api/libvm_api.so release/lib/libvm_api.so
-          tar -czf release.tar.gz release
+          tar -czf release-linux.tar.gz release
       - name: release-pyeos
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            release.tar.gz
+            release-linux.tar.gz
