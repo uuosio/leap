@@ -1,0 +1,56 @@
+name: build ipyeos manylinux
+
+on:
+  push:
+    branches: [ debug ]
+    tags:
+      - "v*.*.*"
+  # pull_request:
+  #   branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-20.04
+    # container:
+    #   image: quay.io/pypa/manylinux2014_x86_64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Cache eos build
+        uses: actions/cache@v2
+        id: cache-leap-build
+        with:
+          key: leap-build-v2.1.0-manylinux-1
+          path: leap/build
+      - name: install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential cmake curl git libboost-all-dev libgmp-dev libssl-dev llvm-11-dev
+      - name: Build leap
+        if: steps.cache-leap-build.outputs.cache-hit != 'true'
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/lib/llvm-11 ..
+          make -j $(nproc)
+      - name: release
+        run: |
+          mkdir -p release/bin
+          mkdir -p release/lib
+          cp build/programs/ipyeos/ipyeos release/bin/ipyeos
+          cp build/libraries/chain_api/libchain_api.so release/lib/libchain_api.so
+          cp build/libraries/vm_api/libvm_api.so release/lib/libvm_api.so
+          tar -czf release.tar.gz release
+      - name: release-pyeos
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release.tar.gz
