@@ -27,6 +27,8 @@
 #include <fstream>
 #include <string.h>
 
+#include "ipyeos.hpp"
+
 #if defined(EOSIO_EOS_VM_RUNTIME_ENABLED) || defined(EOSIO_EOS_VM_JIT_RUNTIME_ENABLED)
 #include <eosio/vm/allocator.hpp>
 #endif
@@ -79,6 +81,23 @@ namespace eosio { namespace chain {
    }
 
    void wasm_interface::apply( const digest_type& code_hash, const uint8_t& vm_type, const uint8_t& vm_version, apply_context& context ) {
+      if (get_ipyeos_proxy()->is_native_contracts_enabled()) {
+         auto on_exit_scope = fc::make_scoped_exit([&](){
+            context.trx_context.resume_billing_timer();
+            get_ipyeos_proxy()->get_apply_context_proxy()->set_context(nullptr);
+         });
+
+         context.trx_context.pause_billing_timer();
+         get_ipyeos_proxy()->get_apply_context_proxy()->set_context(&context);
+
+         uint64_t receiver = context.get_receiver().to_uint64_t();
+         uint64_t first_receiver = context.get_action().account.to_uint64_t();
+         uint64_t action = context.get_action().name.to_uint64_t();
+         if (get_ipyeos_proxy()->call_native_contract(receiver, first_receiver, action)) {
+            return;
+         }
+      }
+
       if(substitute_apply && substitute_apply(code_hash, vm_type, vm_version, context))
          return;
 #ifdef EOSIO_EOS_VM_OC_RUNTIME_ENABLED
