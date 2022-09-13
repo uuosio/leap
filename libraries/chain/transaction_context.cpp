@@ -20,6 +20,8 @@
 
 #include <chrono>
 
+#include "ipyeos.hpp"
+
 namespace eosio { namespace chain {
 
    transaction_checktime_timer::transaction_checktime_timer(platform_timer& timer)
@@ -405,6 +407,10 @@ namespace eosio { namespace chain {
    }
 
    void transaction_context::checktime()const {
+      if (get_ipyeos_proxy()->is_debug_enabled()) {
+         return;
+      }
+
       if(BOOST_LIKELY(transaction_timer.expired == false))
          return;
 

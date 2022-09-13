@@ -81,7 +81,7 @@ namespace eosio { namespace chain {
    }
 
    void wasm_interface::apply( const digest_type& code_hash, const uint8_t& vm_type, const uint8_t& vm_version, apply_context& context ) {
-      if (get_ipyeos_proxy()->is_native_contracts_enabled()) {
+      if (get_ipyeos_proxy()->is_debug_enabled()) {
          auto on_exit_scope = fc::make_scoped_exit([&](){
             context.trx_context.resume_billing_timer();
             get_ipyeos_proxy()->get_apply_context_proxy()->set_context(nullptr);
