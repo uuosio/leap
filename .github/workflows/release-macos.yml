@@ -32,12 +32,18 @@ jobs:
           cd boost_1_79_0
           ./bootstrap.sh --prefix=$HOME/boost1.79
           ./b2 --with-iostreams --with-date_time --with-filesystem --with-system --with-program_options --with-chrono --with-test -j2 install
+      - name: Install boost
+        run: |
+          brew install ninja
       - name: Build
         run: |
+          cd libraries/eos-vm
+          git apply ../../patch/function_traits.patch
+          cd ../..
           mkdir build
           cd build
-          cmake -DCMAKE_PREFIX_PATH="$HOME/boost1.79" -DCMAKE_BUILD_TYPE=Release ..
-          make -j$(sysctl -n hw.ncpu)
+          cmake -DCMAKE_PREFIX_PATH="$HOME/boost1.79" -DCMAKE_BUILD_TYPE=Release -GNinja ..
+          ninja
       - name: Release
         run: |
           mkdir -p release/bin
