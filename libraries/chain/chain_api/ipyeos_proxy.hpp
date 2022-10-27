@@ -8,6 +8,7 @@
 #include "chain_proxy.hpp"
 #include "apply_context_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
+#include "intrinsics.h"
 
 using namespace std;
 
@@ -17,6 +18,7 @@ class apply_context_proxy;
 
 typedef chain_rpc_api_proxy *(*fn_new_chain_api)(eosio::chain::controller *c);
 typedef int (*fn_native_apply)(uint64_t a, uint64_t b, uint64_t c);
+typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
 
 struct native_contract {
     string path;

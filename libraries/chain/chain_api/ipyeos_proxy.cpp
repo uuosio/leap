@@ -105,6 +105,12 @@ bool ipyeos_proxy::set_native_contract(uint64_t contract, const string& native_c
             elog("++++++++${s} load failed!", ("s", native_contract_lib));
             return false;
         }
+        // typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
+        fn_native_init native_init = (fn_native_init)dlsym(handle, "native_init");
+        if (native_init != nullptr) {
+            native_init(get_intrinsics());
+        }
+
         fn_native_apply native_apply = (fn_native_apply)dlsym(handle, "native_apply");
         if (native_apply == nullptr) {
             elog("++++++++native_apply entry not found!");
