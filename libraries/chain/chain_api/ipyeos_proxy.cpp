@@ -92,33 +92,37 @@ string ipyeos_proxy::n2s(uint64_t n) {
 }
 
 bool ipyeos_proxy::set_native_contract(uint64_t contract, const string& native_contract_lib) {
-    if (native_contract_lib.size() == 0) {
-        auto itr = debug_contracts.find(contract);
-        if (itr != debug_contracts.end()) {
-            dlclose(itr->second.handle);
-            debug_contracts.erase(itr);
-        }
-        return true;
-    } else {
-        void* handle = dlopen(native_contract_lib.c_str(), RTLD_LAZY | RTLD_LOCAL);
-        if (!handle) {
-            elog("++++++++${s} load failed!", ("s", native_contract_lib));
-            return false;
-        }
-        // typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
-        fn_native_init native_init = (fn_native_init)dlsym(handle, "native_init");
-        if (native_init != nullptr) {
-            native_init(get_intrinsics());
-        }
+    auto itr = debug_contracts.find(contract);
+    if (itr != debug_contracts.end()) {
+        dlclose(itr->second.handle);
+        debug_contracts.erase(itr);
+    }
 
-        fn_native_apply native_apply = (fn_native_apply)dlsym(handle, "native_apply");
-        if (native_apply == nullptr) {
-            elog("++++++++native_apply entry not found!");
-            return false;
-        }
-        debug_contracts[contract] = {native_contract_lib, handle, native_apply};
+    if (native_contract_lib.size() == 0) {
         return true;
     }
+
+    elog("++++++++loading ${s}", ("s", native_contract_lib));
+    void* handle = dlopen(native_contract_lib.c_str(), RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        elog("++++++++${s} load failed!", ("s", native_contract_lib));
+        return false;
+    }
+    // typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
+    fn_native_init native_init = (fn_native_init)dlsym(handle, "native_init");
+    if (native_init == nullptr) {
+        elog("++++++++native_init entry not found!");
+    } else {
+        native_init(get_intrinsics());
+    }
+
+    fn_native_apply native_apply = (fn_native_apply)dlsym(handle, "native_apply");
+    if (native_apply == nullptr) {
+        elog("++++++++native_apply entry not found!");
+        return false;
+    }
+    debug_contracts[contract] = {native_contract_lib, handle, native_apply};
+    return true;
 }
 
 string ipyeos_proxy::get_native_contract(uint64_t contract) {
