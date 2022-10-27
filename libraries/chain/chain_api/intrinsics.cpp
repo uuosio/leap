@@ -1,5 +1,8 @@
+#include <string.h>
+#include <softfloat.hpp>
 #include "ipyeos.hpp"
 #include "intrinsics.h"
+extern "C" void extF80M_to_f128M( const extFloat80_t *, float128_t * );
 
 static uint32_t _get_active_producers( capi_name* producers, uint32_t datalen ){
     return get_vm_api_proxy()->get_active_producers(producers, datalen);
@@ -206,11 +209,15 @@ static int32_t _db_idx_double_end(capi_name code, uint64_t scope, capi_name tabl
 }
 
 static int32_t _db_idx_long_double_store(uint64_t scope, capi_name table, capi_name payer, uint64_t id, const long double* secondary){
-    return get_vm_api_proxy()->db_idx_long_double_store(scope, table, payer, id, secondary);
+    float128_t _secondary;
+    extF80M_to_f128M((extFloat80_t *)secondary, &_secondary);
+    return get_vm_api_proxy()->db_idx_long_double_store(scope, table, payer, id, (long double *)&_secondary);
 }
 
 static void _db_idx_long_double_update(int32_t iterator, capi_name payer, const long double* secondary){
-    get_vm_api_proxy()->db_idx_long_double_update(iterator, payer, secondary);
+    float128_t _secondary;
+    extF80M_to_f128M((extFloat80_t *)secondary, &_secondary);
+    get_vm_api_proxy()->db_idx_long_double_update(iterator, payer, (long double *)&_secondary);
 }
 
 static void _db_idx_long_double_remove(int32_t iterator){
@@ -226,7 +233,13 @@ static int32_t _db_idx_long_double_previous(int32_t iterator, uint64_t* primary)
 }
 
 static int32_t _db_idx_long_double_find_primary(capi_name code, uint64_t scope, capi_name table, long double* secondary, uint64_t primary){
-    return get_vm_api_proxy()->db_idx_long_double_find_primary(code, scope, table, secondary, primary);
+    int32_t ret = get_vm_api_proxy()->db_idx_long_double_find_primary(code, scope, table, secondary, primary);
+    if (ret >= 0) {
+        float128_t _secondary;
+        f128M_to_extF80M((float128_t *)secondary, (extFloat80_t *)&_secondary);
+        memcpy(secondary, &_secondary, sizeof(_secondary));
+    }
+    return ret;
 }
 
 static int32_t _db_idx_long_double_find_secondary(capi_name code, uint64_t scope, capi_name table, const long double* secondary, uint64_t* primary){
@@ -234,11 +247,23 @@ static int32_t _db_idx_long_double_find_secondary(capi_name code, uint64_t scope
 }
 
 static int32_t _db_idx_long_double_lowerbound(capi_name code, uint64_t scope, capi_name table, long double* secondary, uint64_t* primary){
-    return get_vm_api_proxy()->db_idx_long_double_lowerbound(code, scope, table, secondary, primary);
+    float128_t _secondary;
+    extF80M_to_f128M((extFloat80_t *)secondary, &_secondary);
+    int32_t ret = get_vm_api_proxy()->db_idx_long_double_lowerbound(code, scope, table, (long double *)&_secondary, primary);
+    if (ret >= 0) {
+        f128M_to_extF80M(&_secondary, (extFloat80_t *)secondary);
+    }
+    return ret;
 }
 
 static int32_t _db_idx_long_double_upperbound(capi_name code, uint64_t scope, capi_name table, long double* secondary, uint64_t* primary){
-    return get_vm_api_proxy()->db_idx_long_double_upperbound(code, scope, table, secondary, primary);
+    float128_t _secondary;
+    extF80M_to_f128M((extFloat80_t *)secondary, &_secondary);
+    int32_t ret = get_vm_api_proxy()->db_idx_long_double_upperbound(code, scope, table, (long double*)&_secondary, primary);
+    if (ret >= 0) {
+        f128M_to_extF80M(&_secondary, (extFloat80_t *)secondary);
+    }
+    return ret;
 }
 
 static int32_t _db_idx_long_double_end(capi_name code, uint64_t scope, capi_name table){
