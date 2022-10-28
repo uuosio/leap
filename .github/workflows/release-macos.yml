@@ -32,7 +32,7 @@ jobs:
           cd boost_1_79_0
           ./bootstrap.sh --prefix=$HOME/boost1.79
           ./b2 --with-iostreams --with-date_time --with-filesystem --with-system --with-program_options --with-chrono --with-test -j2 install
-      - name: Install boost
+      - name: Install ninja
         run: |
           brew install ninja
       - name: Build

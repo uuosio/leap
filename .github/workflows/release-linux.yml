@@ -27,12 +27,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install build-essential cmake curl git libboost-all-dev libgmp-dev libssl-dev llvm-11-dev
+          sudo apt-get install ninja-build
       - name: Build leap
         run: |
           mkdir build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/lib/llvm-11 ..
-          make -j $(nproc)
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/lib/llvm-11 -GNinja ..
+          ninja
       - name: release
         run: |
           mkdir -p release/bin
