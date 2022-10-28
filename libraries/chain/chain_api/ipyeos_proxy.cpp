@@ -1,3 +1,4 @@
+#include <optional>
 #include <fc/log/logger.hpp>
 #include <eosio/chain/config.hpp>
 #include <eosio/chain/abi_def.hpp>
@@ -91,22 +92,11 @@ string ipyeos_proxy::n2s(uint64_t n) {
     return eosio::chain::name(n).to_string();
 }
 
-bool ipyeos_proxy::set_native_contract(uint64_t contract, const string& native_contract_lib) {
-    auto itr = debug_contracts.find(contract);
-    if (itr != debug_contracts.end()) {
-        dlclose(itr->second.handle);
-        debug_contracts.erase(itr);
-    }
-
-    if (native_contract_lib.size() == 0) {
-        return true;
-    }
-
-    elog("++++++++loading ${s}", ("s", native_contract_lib));
+std::optional<std::pair<void *, fn_native_apply>> load_native_contract(const string& native_contract_lib) {
     void* handle = dlopen(native_contract_lib.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (!handle) {
         elog("++++++++${s} load failed!", ("s", native_contract_lib));
-        return false;
+        return std::nullopt;
     }
     // typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
     fn_native_init native_init = (fn_native_init)dlsym(handle, "native_init");
@@ -119,10 +109,81 @@ bool ipyeos_proxy::set_native_contract(uint64_t contract, const string& native_c
     fn_native_apply native_apply = (fn_native_apply)dlsym(handle, "native_apply");
     if (native_apply == nullptr) {
         elog("++++++++native_apply entry not found!");
-        return false;
+        return std::nullopt;
     }
-    debug_contracts[contract] = {native_contract_lib, handle, native_apply};
-    return true;
+    return std::make_pair(handle, native_apply);
+}
+
+bool ipyeos_proxy::set_native_contract(uint64_t contract, const string& native_contract_lib) {
+    std::filesystem::path _native_contract_lib = native_contract_lib;
+
+    if (native_contract_lib.size() == 0) {
+        auto itr = debug_contracts.find(contract);
+        if (itr != debug_contracts.end()) {
+            debug_contracts.erase(itr);
+            auto itr2 = native_libraries.find(itr->second->path);
+            EOS_ASSERT(itr2 != native_libraries.end(), eosio::chain::chain_exception, "itr != native_libraries.end()");
+            if (itr2->second.use_count() == 1) {
+                dlclose(itr2->second->handle);
+                debug_contracts.erase(itr);
+            }
+            return true;
+        }
+        return false;
+    } else {
+        if (!std::filesystem::exists(_native_contract_lib)) {
+            elog("++++++++${s} does not exists!", ("s", native_contract_lib));
+            return false;
+        }
+
+        _native_contract_lib = std::filesystem::absolute(_native_contract_lib);
+        auto last_write_time = std::filesystem::last_write_time(_native_contract_lib);
+        auto itr = native_libraries.find(_native_contract_lib);
+
+        std::shared_ptr<native_contract> _native_contract;
+        if (itr != native_libraries.end()) {
+            _native_contract = itr->second;
+            // reload native lib if changed
+            if (itr->second->last_write_time != last_write_time) {
+                dlclose(itr->second->handle);
+                auto ret = load_native_contract(native_contract_lib);
+                if (!ret) {
+                    // invalid native lib
+                    // remove all native contracts which have the same handle
+                    auto itr2 = debug_contracts.begin();
+                    while (itr2 != debug_contracts.end()) {
+                        if (itr2->second->handle == itr->second->handle) {
+                            itr2 = debug_contracts.erase(itr2);
+                        } else {
+                            ++itr2;
+                        }
+                    }
+                    native_libraries.erase(itr);
+                    return false;
+                }
+                itr->second->handle = ret->first;
+                itr->second->apply = ret->second;
+                itr->second->last_write_time = last_write_time;
+                elog("++++++++reloading ${s}", ("s", _native_contract_lib.string()));
+            }
+        } else {
+            auto ret = load_native_contract(native_contract_lib);
+            if (!ret) {
+                return false;
+            }
+            _native_contract = std::make_shared<native_contract>(
+                native_contract{
+                    _native_contract_lib.string(),
+                    ret->first,
+                    last_write_time,
+                    ret->second
+                }
+            );
+            native_libraries[_native_contract_lib] = _native_contract;
+        }
+        debug_contracts[contract] = _native_contract;
+        return true;
+    }
 }
 
 string ipyeos_proxy::get_native_contract(uint64_t contract) {
@@ -130,7 +191,7 @@ string ipyeos_proxy::get_native_contract(uint64_t contract) {
     if (itr == debug_contracts.end()) {
         return "";
     }
-    return itr->second.path;
+    return itr->second->path;
 }
 
 bool ipyeos_proxy::call_native_contract(uint64_t receiver, uint64_t first_receiver, uint64_t action) {
@@ -142,7 +203,7 @@ bool ipyeos_proxy::call_native_contract(uint64_t receiver, uint64_t first_receiv
     if (itr == debug_contracts.end()) {
         return false;
     }
-    return itr->second.apply(receiver, first_receiver, action);
+    return itr->second->apply(receiver, first_receiver, action);
 }
 
 void ipyeos_proxy::enable_native_contracts(bool debug) {

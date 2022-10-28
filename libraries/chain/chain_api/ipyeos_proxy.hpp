@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <filesystem>
 
 #include "chain_proxy.hpp"
 #include "apply_context_proxy.hpp"
@@ -23,6 +24,7 @@ typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
 struct native_contract {
     string path;
     void *handle;
+    std::filesystem::file_time_type last_write_time;
     fn_native_apply apply;
 };
 
@@ -77,7 +79,8 @@ class ipyeos_proxy {
         std::shared_ptr<apply_context_proxy> _apply_context_proxy;
         bool native_contracts_enabled = false;
         bool debug_enabled = false;
-        std::map<uint64_t, native_contract> debug_contracts;
+        std::map<std::filesystem::path, std::shared_ptr<native_contract>> native_libraries;
+        std::map<uint64_t, std::shared_ptr<native_contract>> debug_contracts;
 };
 
 typedef void (*fn_init_ipyeos_proxy)(ipyeos_proxy *proxy);
