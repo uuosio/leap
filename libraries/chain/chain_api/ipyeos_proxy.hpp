@@ -13,20 +13,16 @@
 
 using namespace std;
 
+namespace eosio {
+    namespace chain {
+        class controller;
+    }
+}
 
 class chain_rpc_api_proxy;
 class apply_context_proxy;
 
 typedef chain_rpc_api_proxy *(*fn_new_chain_api)(eosio::chain::controller *c);
-typedef int (*fn_native_apply)(uint64_t a, uint64_t b, uint64_t c);
-typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
-
-struct native_contract {
-    string path;
-    void *handle;
-    std::filesystem::file_time_type last_write_time;
-    fn_native_apply apply;
-};
 
 typedef int (*fn_eos_init)(int argc, char** argv);
 typedef int (*fn_eos_exec)();
@@ -55,11 +51,7 @@ class ipyeos_proxy {
         virtual uint64_t s2n(string& name);
         virtual string n2s(uint64_t n);
 
-        virtual bool set_native_contract(uint64_t contract, const string& native_contract_lib);
-        virtual string get_native_contract(uint64_t contract);
         virtual bool call_native_contract(uint64_t receiver, uint64_t first_receiver, uint64_t action);
-        virtual void enable_native_contracts(bool debug);
-        virtual bool is_native_contracts_enabled();
 
         virtual void enable_debug(bool debug);
         virtual bool is_debug_enabled();
@@ -75,12 +67,10 @@ class ipyeos_proxy {
         fn_eos_exec eos_exec;
 
     private:
+        map<eosio::chain::controller*, chain_proxy*> chain_proxy_map;
         string last_error;
         std::shared_ptr<apply_context_proxy> _apply_context_proxy;
-        bool native_contracts_enabled = false;
         bool debug_enabled = false;
-        std::map<std::filesystem::path, std::shared_ptr<native_contract>> native_libraries;
-        std::map<uint64_t, std::shared_ptr<native_contract>> debug_contracts;
 };
 
 typedef void (*fn_init_ipyeos_proxy)(ipyeos_proxy *proxy);

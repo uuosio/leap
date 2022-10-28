@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <filesystem>
 
 #include "chain_rpc_api_proxy.hpp"
 
@@ -16,6 +17,16 @@ namespace eosio {
         struct abi_serializer;
     }
 }
+
+typedef int (*fn_native_apply)(uint64_t a, uint64_t b, uint64_t c);
+typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
+
+struct native_contract {
+    string path;
+    void *handle;
+    std::filesystem::file_time_type last_write_time;
+    fn_native_apply apply;
+};
 
 class chain_proxy {
     public:
@@ -124,15 +135,24 @@ class chain_proxy {
         virtual eosio::chain::abi_serializer* get_abi_cache(string& account);
         virtual void clear_abi_cache(string& account);
 
+        static chain_proxy* get_chain_proxy(void *controller_proxy_ptr);
+
+        virtual bool call_native_contract(uint64_t receiver, uint64_t first_receiver, uint64_t action);
+        virtual string get_native_contract(const string& contract);
+        virtual bool set_native_contract(const string& contract, const string& native_contract_lib);
     private:
         void load_abi(string& account);
 
     private:
+        static map<chain_proxy*, bool> chain_proxy_map;
         std::unique_ptr<eosio::chain::chain_manager> cm;
         std::shared_ptr<eosio::chain::controller> c;
         std::shared_ptr<chain_rpc_api_proxy> _api_proxy;
         std::map<std::string, std::shared_ptr<eosio::chain::abi_serializer>> abi_cache;
         string last_error;
+
+        std::map<std::filesystem::path, std::shared_ptr<native_contract>> native_libraries;
+        std::map<uint64_t, std::shared_ptr<native_contract>> native_contracts;
 };
 
 extern "C" {
