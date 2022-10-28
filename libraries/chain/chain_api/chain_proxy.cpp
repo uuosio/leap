@@ -714,13 +714,13 @@ bool chain_proxy::set_native_contract(const string& contract, const string& nati
     if (native_contract_lib.size() == 0) {
         auto itr = native_contracts.find(_contract);
         if (itr != native_contracts.end()) {
-            native_contracts.erase(itr);
             auto itr2 = s_native_libraries.find(itr->second->path);
             EOS_ASSERT(itr2 != s_native_libraries.end(), eosio::chain::chain_exception, "itr != s_native_libraries.end()");
-            if (itr2->second.use_count() == 1) {
+            if (itr2->second.use_count() == 2) {
                 dlclose(itr2->second->handle);
-                native_contracts.erase(itr);
+                s_native_libraries.erase(itr2);
             }
+            native_contracts.erase(itr);
             return true;
         }
         return false;
