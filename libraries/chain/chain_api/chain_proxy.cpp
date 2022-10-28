@@ -16,16 +16,13 @@ extern "C" ipyeos_proxy *get_ipyeos_proxy();
 
 using namespace eosio::chain;
 
-map<chain_proxy*, bool> chain_proxy::chain_proxy_map = map<chain_proxy*, bool>();
+static std::map<std::filesystem::path, std::shared_ptr<native_contract>> s_native_libraries;
 
 chain_proxy::chain_proxy()
 {
-    chain_proxy_map[this] = true;
 }
 
 chain_proxy::~chain_proxy() {
-    auto itr = chain_proxy_map.find(this);
-    chain_proxy_map.erase(itr);
 }
 
 int chain_proxy::init(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir) {
@@ -718,8 +715,8 @@ bool chain_proxy::set_native_contract(const string& contract, const string& nati
         auto itr = native_contracts.find(_contract);
         if (itr != native_contracts.end()) {
             native_contracts.erase(itr);
-            auto itr2 = native_libraries.find(itr->second->path);
-            EOS_ASSERT(itr2 != native_libraries.end(), eosio::chain::chain_exception, "itr != native_libraries.end()");
+            auto itr2 = s_native_libraries.find(itr->second->path);
+            EOS_ASSERT(itr2 != s_native_libraries.end(), eosio::chain::chain_exception, "itr != s_native_libraries.end()");
             if (itr2->second.use_count() == 1) {
                 dlclose(itr2->second->handle);
                 native_contracts.erase(itr);
@@ -735,10 +732,10 @@ bool chain_proxy::set_native_contract(const string& contract, const string& nati
 
         _native_contract_lib = std::filesystem::absolute(_native_contract_lib);
         auto last_write_time = std::filesystem::last_write_time(_native_contract_lib);
-        auto itr = native_libraries.find(_native_contract_lib);
+        auto itr = s_native_libraries.find(_native_contract_lib);
 
         std::shared_ptr<native_contract> _native_contract;
-        if (itr != native_libraries.end()) {
+        if (itr != s_native_libraries.end()) {
             _native_contract = itr->second;
             // reload native lib if changed
             if (itr->second->last_write_time != last_write_time) {
@@ -755,7 +752,7 @@ bool chain_proxy::set_native_contract(const string& contract, const string& nati
                             ++itr2;
                         }
                     }
-                    native_libraries.erase(itr);
+                    s_native_libraries.erase(itr);
                     return false;
                 }
                 itr->second->handle = ret->first;
@@ -776,7 +773,7 @@ bool chain_proxy::set_native_contract(const string& contract, const string& nati
                     ret->second
                 }
             );
-            native_libraries[_native_contract_lib] = _native_contract;
+            s_native_libraries[_native_contract_lib] = _native_contract;
         }
         native_contracts[_contract] = _native_contract;
         return true;

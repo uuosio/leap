@@ -144,14 +144,12 @@ class chain_proxy {
         void load_abi(string& account);
 
     private:
-        static map<chain_proxy*, bool> chain_proxy_map;
         std::unique_ptr<eosio::chain::chain_manager> cm;
         std::shared_ptr<eosio::chain::controller> c;
         std::shared_ptr<chain_rpc_api_proxy> _api_proxy;
         std::map<std::string, std::shared_ptr<eosio::chain::abi_serializer>> abi_cache;
         string last_error;
 
-        std::map<std::filesystem::path, std::shared_ptr<native_contract>> native_libraries;
         std::map<uint64_t, std::shared_ptr<native_contract>> native_contracts;
 };
 
