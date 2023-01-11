@@ -132,8 +132,8 @@ try:
     postInfo = None
     transferAmount=10
 
-    # ensuring that prod0's producer is active, which will give sufficient time to identify the transaction as "LOCALLY_APPLIED" before it travels
-    # through the chain of nodes to node0 to be added to a block
+    # Ensuring that prod0's producer is active, which will give more time to identify the transaction as "LOCALLY_APPLIED" before it travels
+    # through the chain of nodes to node0 to be added to a block. It is still possible to hit the end of a block and state be IN_BLOCK here.
     # defproducera -> defproducerb -> defproducerc -> NPN
     prod0.waitForProducer("defproducera", exitOnError=True)
     testNode.transferFunds(cluster.eosioAccount, account1, f"{transferAmount}.0000 {CORE_SYMBOL}", "fund account")
@@ -141,8 +141,8 @@ try:
     retStatus=testNode.getTransactionStatus(transId)
     state = getState(retStatus)
 
-    assert state == localState, \
-        f"ERROR: getTransactionStatus didn't return \"{localState}\" state.\n\nstatus: {json.dumps(retStatus, indent=1)}"
+    assert (state == localState or state == inBlockState), \
+        f"ERROR: getTransactionStatus didn't return \"{localState}\" or \"{inBlockState}\" state.\n\nstatus: {json.dumps(retStatus, indent=1)}"
     status.append(copy.copy(retStatus))
     startingBlockNum=testNode.getInfo()["head_block_num"]
 
@@ -150,12 +150,13 @@ try:
         bnPresent = "block_number" in status
         biPresent = "block_id" in status
         btPresent = "block_timestamp" in status
-        desc = "" if present else "not "
+        desc = "" if present else " not"
         group = bnPresent and biPresent and btPresent if present else not bnPresent and not biPresent and not btPresent
         assert group, \
             f"ERROR: getTransactionStatus should{desc} contain \"block_number\", \"block_id\", or \"block_timestamp\" since state was \"{getState(status)}\".\nstatus: {json.dumps(status, indent=1)}"
 
-    validateTrxState(status[0], present=False)
+    present = True if state == inBlockState else False
+    validateTrxState(status[0], present)
 
     def validate(status, knownTrx=True):
         assert "head_number" in status and "head_id" in status and "head_timestamp" in status, \

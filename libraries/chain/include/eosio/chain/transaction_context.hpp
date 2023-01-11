@@ -39,14 +39,13 @@ namespace eosio { namespace chain {
                               const packed_transaction& t,
                               transaction_checktime_timer&& timer,
                               fc::time_point start = fc::time_point::now(),
-                              bool read_only=false);
+                              transaction_metadata::trx_type type = transaction_metadata::trx_type::input);
          ~transaction_context();
 
          void init_for_implicit_trx( uint64_t initial_net_usage = 0 );
 
          void init_for_input_trx( uint64_t packed_trx_unprunable_size,
-                                  uint64_t packed_trx_prunable_size,
-                                  bool skip_recording);
+                                  uint64_t packed_trx_prunable_size );
 
          void init_for_deferred_trx( fc::time_point published );
 
@@ -84,6 +83,8 @@ namespace eosio { namespace chain {
 
          void validate_referenced_accounts( const transaction& trx, bool enforce_actor_whitelist_blacklist )const;
 
+         bool is_dry_run()const { return trx_type == transaction_metadata::trx_type::dry_run; };
+
       private:
 
          friend struct controller_impl;
@@ -117,6 +118,8 @@ namespace eosio { namespace chain {
 
          void disallow_transaction_extensions( const char* error_msg )const;
 
+         std::string get_tx_cpu_usage_exceeded_reason_msg(fc::microseconds& limit) const;
+
       /// Fields:
       public:
 
@@ -144,14 +147,14 @@ namespace eosio { namespace chain {
          fc::time_point                block_deadline = fc::time_point::maximum();
          fc::microseconds              leeway = fc::microseconds( config::default_subjective_cpu_leeway_us );
          int64_t                       billed_cpu_time_us = 0;
-         uint32_t                      subjective_cpu_bill_us = 0;
+         int64_t                       subjective_cpu_bill_us = 0;
          bool                          explicit_billed_cpu_time = false;
 
          transaction_checktime_timer   transaction_timer;
 
-         const bool                    is_read_only;
    private:
          bool                          is_initialized = false;
+         transaction_metadata::trx_type trx_type;
 
          uint64_t                      net_limit = 0;
          bool                          net_limit_due_to_block = true;
@@ -170,6 +173,16 @@ namespace eosio { namespace chain {
          int64_t                       billing_timer_exception_code = block_cpu_usage_exceeded::code_value;
          fc::time_point                pseudo_start;
          fc::microseconds              billed_time;
+
+         enum class tx_cpu_usage_exceeded_reason {
+            account_cpu_limit, // includes subjective billing
+            on_chain_consensus_max_transaction_cpu_usage,
+            user_specified_trx_max_cpu_usage_ms,
+            node_configured_max_transaction_time,
+            speculative_executed_adjusted_max_transaction_time // prev_billed_cpu_time_us > 0
+         };
+         tx_cpu_usage_exceeded_reason  tx_cpu_usage_reason = tx_cpu_usage_exceeded_reason::account_cpu_limit;
+         fc::microseconds              tx_cpu_usage_amount;
    };
 
 } }

@@ -42,7 +42,7 @@ if("eos-vm-oc" IN_LIST EOSIO_WASM_RUNTIMES)
    endif()
 
    llvm_map_components_to_libnames(LLVM_LIBS support core passes mcjit native orcjit)
-   include_directories(${LLVM_INCLUDE_DIRS})
+   include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
    add_definitions(${LLVM_DEFINITIONS})
 
    option(EOSVMOC_ENABLE_DEVELOPER_OPTIONS "enable developer options for EOS VM OC" OFF)
@@ -71,6 +71,9 @@ set(CHAIN_WEBASSEMBLY_SOURCES
    webassembly/system.cpp
    webassembly/transaction.cpp
 )
+
+add_library(eosio_rapidjson INTERFACE)
+target_include_directories(eosio_rapidjson INTERFACE ../rapidjson/include)
 
 ## SORT .cpp by most likely to change / break compile
 add_library( eosio_chain
@@ -149,7 +152,7 @@ add_library( eosio_chain
              ${HEADERS}
              )
 
-target_link_libraries( eosio_chain PUBLIC fc chainbase Logging IR WAST WASM Runtime
+target_link_libraries( eosio_chain PUBLIC bn256 fc chainbase eosio_rapidjson Logging IR WAST WASM Runtime
                        softfloat builtins ${CHAIN_EOSVM_LIBRARIES} ${LLVM_LIBS} ${CHAIN_RT_LINKAGE}
                      )
 target_include_directories( eosio_chain

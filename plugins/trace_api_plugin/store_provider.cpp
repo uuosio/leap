@@ -74,7 +74,7 @@ namespace eosio::trace_api {
    get_block_t store_provider::get_block(uint32_t block_height, const yield_function& yield) {
       std::optional<uint64_t> trace_offset;
       bool irreversible = false;
-      uint64_t offset = scan_metadata_log_from(block_height, 0, [&block_height, &trace_offset, &irreversible](const metadata_log_entry& e) -> bool {
+      scan_metadata_log_from(block_height, 0, [&block_height, &trace_offset, &irreversible](const metadata_log_entry& e) -> bool {
          if (std::holds_alternative<block_entry_v0>(e)) {
             const auto& block = std::get<block_entry_v0>(e);
             if (block.number == block_height) {
@@ -307,8 +307,11 @@ namespace eosio::trace_api {
                _maintenance_condition.wait(lock);
             }
 
+            if (_maintenance_shutdown) {
+               break;
+            }
+
             uint32_t best_known_lib = _best_known_lib;
-            bool shutdown = _maintenance_shutdown;
             lock.unlock();
 
             log(std::string("Waking up to handle lib: ") + std::to_string(best_known_lib));
@@ -318,10 +321,6 @@ namespace eosio::trace_api {
                   run_maintenance_tasks(best_known_lib, log);
                   last_lib = best_known_lib;
                } FC_LOG_AND_DROP();
-            }
-
-            if (shutdown) {
-               break;
             }
          }
       });

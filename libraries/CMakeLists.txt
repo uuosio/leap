@@ -3,16 +3,12 @@ set(FC_INSTALL_COMPONENT "dev")
 set(APPBASE_INSTALL_COMPONENT "dev")
 set(SOFTFLOAT_INSTALL_COMPONENT "dev")
 set(EOSVM_INSTALL_COMPONENT "dev")
+set(BN256_INSTALL_COMPONENT "dev")
 
-add_subdirectory( fc )
+add_subdirectory( libfc )
 add_subdirectory( builtins )
-
-# Suppress warnings on 3rdParty Library
-add_definitions( -w )
 add_subdirectory( softfloat )
 add_subdirectory( wasm-jit )
-remove_definitions( -w )
-
 add_subdirectory( chainbase )
 set(APPBASE_ENABLE_AUTO_VERSION OFF CACHE BOOL "enable automatic discovery of version via 'git describe'")
 add_subdirectory( appbase )
@@ -20,6 +16,7 @@ add_subdirectory( chain )
 add_subdirectory( testing )
 add_subdirectory( version )
 add_subdirectory( state_history )
+add_subdirectory( cli11 )
 add_subdirectory( chain_api )
 add_subdirectory( vm_api )
 

@@ -416,6 +416,8 @@ namespace eosio {
     *  If there is a change to network protocol or behavior, increment net version to identify
     *  the need for compatibility hooks
     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
    constexpr uint16_t proto_base = 0;
    constexpr uint16_t proto_explicit_sync = 1;       // version at time of eosio 1.0
    constexpr uint16_t proto_block_id_notify = 2;     // reserved. feature was removed. next net_version should be 3
@@ -424,6 +426,7 @@ namespace eosio {
    constexpr uint16_t proto_dup_goaway_resolution = 5;     // eosio 2.1: support peer address based duplicate connection resolution
    constexpr uint16_t proto_dup_node_id_goaway = 6;        // eosio 2.1: support peer node_id based duplicate connection resolution
    constexpr uint16_t proto_leap_initial = 7;            // leap client, needed because none of the 2.1 versions are supported
+#pragma GCC diagnostic pop
 
    constexpr uint16_t net_version_max = proto_leap_initial;
 
@@ -631,6 +634,7 @@ namespace eosio {
       string                  local_endpoint_port;
 
       std::atomic<uint32_t>   trx_in_progress_size{0};
+      fc::time_point          last_dropped_trx_msg_time;
       const uint32_t          connection_id;
       int16_t                 sent_handshake_count = 0;
       std::atomic<bool>       connecting{true};
@@ -1161,7 +1165,7 @@ namespace eosio {
                close(false);
             }
             return;
-         } else if( latest_blk_time > 0 ) {
+         } else {
             const tstamp timeout = std::max(hb_timeout/2, 2*std::chrono::milliseconds(config::block_interval_ms).count());
             if ( current_time > latest_blk_time + timeout ) {
                send_handshake();
@@ -1618,28 +1622,29 @@ namespace eosio {
        * otherwise select the next available from the list, round-robin style.
        */
 
+      connection_ptr new_sync_source = sync_source;
       if (conn && conn->current() ) {
-         sync_source = conn;
+         new_sync_source = conn;
       } else {
          std::shared_lock<std::shared_mutex> g( my_impl->connections_mtx );
          if( my_impl->connections.size() == 0 ) {
-            sync_source.reset();
+            new_sync_source.reset();
          } else if( my_impl->connections.size() == 1 ) {
-            if (!sync_source) {
-               sync_source = *my_impl->connections.begin();
+            if (!new_sync_source) {
+               new_sync_source = *my_impl->connections.begin();
             }
          } else {
             // init to a linear array search
             auto cptr = my_impl->connections.begin();
             auto cend = my_impl->connections.end();
             // do we remember the previous source?
-            if (sync_source) {
+            if (new_sync_source) {
                //try to find it in the list
-               cptr = my_impl->connections.find( sync_source );
+               cptr = my_impl->connections.find( new_sync_source );
                cend = cptr;
                if( cptr == my_impl->connections.end() ) {
                   //not there - must have been closed! cend is now connections.end, so just flatten the ring.
-                  sync_source.reset();
+                  new_sync_source.reset();
                   cptr = my_impl->connections.begin();
                } else {
                   //was found - advance the start to the next. cend is the old source.
@@ -1657,7 +1662,7 @@ namespace eosio {
                   if( !(*cptr)->is_transactions_only_connection() && (*cptr)->current() ) {
                      std::lock_guard<std::mutex> g_conn( (*cptr)->conn_mtx );
                      if( (*cptr)->last_handshake_recv.last_irreversible_block_num >= sync_known_lib_num ) {
-                        sync_source = *cptr;
+                        new_sync_source = *cptr;
                         break;
                      }
                   }
@@ -1670,8 +1675,9 @@ namespace eosio {
       }
 
       // verify there is an available source
-      if( !sync_source || !sync_source->current() || sync_source->is_transactions_only_connection() ) {
+      if( !new_sync_source || !new_sync_source->current() || new_sync_source->is_transactions_only_connection() ) {
          fc_elog( logger, "Unable to continue syncing at this time");
+         if( !new_sync_source ) sync_source.reset();
          sync_known_lib_num = lib_block_num;
          reset_last_requested_num(g_sync);
          set_state( in_sync ); // probably not, but we can't do anything else
@@ -1686,12 +1692,12 @@ namespace eosio {
             end = sync_known_lib_num;
          if( end > 0 && end >= start ) {
             sync_last_requested_num = end;
-            connection_ptr c = sync_source;
+            sync_source = new_sync_source;
             g_sync.unlock();
             request_sent = true;
-            c->strand.post( [c, start, end]() {
-               peer_ilog( c, "requesting range ${s} to ${e}", ("s", start)("e", end) );
-               c->request_sync_blocks( start, end );
+            new_sync_source->strand.post( [new_sync_source, start, end]() {
+               peer_ilog( new_sync_source, "requesting range ${s} to ${e}", ("s", start)("e", end) );
+               new_sync_source->request_sync_blocks( start, end );
             } );
          }
       }
@@ -2335,14 +2341,6 @@ namespace eosio {
 
    // called from connection strand
    void connection::connect( const std::shared_ptr<tcp::resolver>& resolver, tcp::resolver::results_type endpoints ) {
-      switch ( no_retry ) {
-         case no_reason:
-         case wrong_version:
-         case benign_other:
-            break;
-         default:
-            return;
-      }
       connecting = true;
       pending_message_buffer.reset();
       buffer_queue.clear_out_queue();
@@ -2670,7 +2668,6 @@ namespace eosio {
       const unsigned long trx_in_progress_sz = this->trx_in_progress_size.load();
 
       auto ds = pending_message_buffer.create_datastream();
-      const auto buff_size_start = pending_message_buffer.bytes_to_read();
       unsigned_int which{};
       fc::raw::unpack( ds, which );
       shared_ptr<packed_transaction> ptr = std::make_shared<packed_transaction>();
@@ -2679,6 +2676,10 @@ namespace eosio {
          char reason[72];
          snprintf(reason, 72, "Dropping trx, too many trx in progress %lu bytes", trx_in_progress_sz);
          my_impl->producer_plug->log_failed_transaction(ptr->id(), ptr, reason);
+         if (fc::time_point::now() - fc::seconds(1) >= last_dropped_trx_msg_time) {
+            last_dropped_trx_msg_time = fc::time_point::now();
+            peer_wlog(this, reason);
+         }
          return true;
       }
       bool have_trx = my_impl->dispatcher->have_txn( ptr->id() );
@@ -3346,7 +3347,6 @@ namespace eosio {
    // called from application thread
    void net_plugin_impl::on_accepted_block(const block_state_ptr& bs) {
       update_chain_info();
-      controller& cc = chain_plug->chain();
       dispatcher->strand.post( [this, bs]() {
          fc_dlog( logger, "signaled accepted_block, blk num = ${num}, id = ${id}", ("num", bs->block_num)("id", bs->id) );
 
@@ -3473,7 +3473,6 @@ namespace eosio {
    bool connection::populate_handshake( handshake_message& hello ) {
       namespace sc = std::chrono;
       hello.network_version = net_version_base + net_version;
-      const auto prev_head_id = hello.head_id;
       uint32_t lib, head;
       std::tie( lib, std::ignore, head,
                 hello.last_irreversible_block_id, std::ignore, hello.head_id ) = my_impl->get_chain_info();
@@ -3653,11 +3652,10 @@ namespace eosio {
          fc::rand_pseudo_bytes( my->node_id.data(), my->node_id.data_size());
          const controller& cc = my->chain_plug->chain();
 
-         if( cc.get_read_mode() == db_read_mode::IRREVERSIBLE || cc.get_read_mode() == db_read_mode::READ_ONLY ) {
+         if( cc.get_read_mode() == db_read_mode::IRREVERSIBLE ) {
             if( my->p2p_accept_transactions ) {
                my->p2p_accept_transactions = false;
-               string m = cc.get_read_mode() == db_read_mode::IRREVERSIBLE ? "irreversible" : "read-only";
-               wlog( "p2p-accept-transactions set to false due to read-mode: ${m}", ("m", m) );
+               wlog( "p2p-accept-transactions set to false due to read-mode: irreversible" );
             }
          }
          if( my->p2p_accept_transactions ) {

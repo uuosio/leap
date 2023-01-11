@@ -6,6 +6,11 @@ import os
 import re
 import json
 import signal
+import sys
+
+import urllib.request
+import urllib.parse
+import urllib.error
 
 from datetime import datetime
 from datetime import timedelta
@@ -28,7 +33,7 @@ class Node(object):
 
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
-    def __init__(self, host, port, nodeId, pid=None, cmd=None, walletMgr=None):
+    def __init__(self, host, port, nodeId, pid=None, cmd=None, walletMgr=None, nodeosVers=""):
         self.host=host
         self.port=port
         self.pid=pid
@@ -49,6 +54,21 @@ class Node(object):
         self.missingTransaction=False
         self.popenProc=None           # initial process is started by launcher, this will only be set on relaunch
         self.lastTrackedTransactionId=None
+        self.nodeosVers=nodeosVers
+        if self.nodeosVers=="v2":
+            self.fetchTransactionCommand = lambda: "get transaction"
+            self.fetchTransactionFromTrace = lambda trx: trx['trx']['id']
+            self.fetchBlock = lambda blockNum: self.processUrllibRequest("chain", "get_block", {"block_num_or_id":blockNum}, silentErrors=False, exitOnError=True)
+            self.fetchKeyCommand = lambda: "[trx][trx][ref_block_num]"
+            self.fetchRefBlock = lambda trans: trans["trx"]["trx"]["ref_block_num"]
+            self.cleosLimit = ""
+        else:
+            self.fetchTransactionCommand = lambda: "get transaction_trace"
+            self.fetchTransactionFromTrace = lambda trx: trx['id']
+            self.fetchBlock = lambda blockNum: self.processUrllibRequest("trace_api", "get_block", {"block_num":blockNum}, silentErrors=False, exitOnError=True)
+            self.fetchKeyCommand = lambda: "[transaction][transaction_header][ref_block_num]"
+            self.fetchRefBlock = lambda trans: trans["transaction_header"]["ref_block_num"]
+            self.cleosLimit = "--time-limit 99999"
 
     def eosClientArgs(self):
         walletArgs=" " + self.walletMgr.getWalletEndpointArgs() if self.walletMgr is not None else ""
@@ -152,10 +172,10 @@ class Node(object):
         # could be a transaction response
         if cntxt.hasKey("processed"):
             cntxt.add("processed")
-            cntxt.add("action_traces")
-            cntxt.index(0)
             if not cntxt.isSectionNull("except"):
                 return "no_block"
+            cntxt.add("action_traces")
+            cntxt.index(0)
             return cntxt.add("block_num")
 
         # or what the trace api plugin returns
@@ -177,7 +197,7 @@ class Node(object):
             outs,errs=popen.communicate(input=subcommand.encode("utf-8"))
             ret=popen.wait()
         except subprocess.CalledProcessError as ex:
-            msg=ex.output
+            msg=ex.stderr
             return (ex.returncode, msg, None)
 
         return (ret, outs, errs)
@@ -275,7 +295,7 @@ class Node(object):
         assert(isinstance(transId, str))
         exitOnErrorForDelayed=not delayedRetry and exitOnError
         timeout=3
-        cmdDesc="get transaction_trace"
+        cmdDesc=self.fetchTransactionCommand()
         cmd="%s %s" % (cmdDesc, transId)
         msg="(transaction id=%s)" % (transId);
         for i in range(0,(int(60/timeout) - 1)):
@@ -328,8 +348,8 @@ class Node(object):
         refBlockNum=None
         key=""
         try:
-            key="[transaction][transaction_header][ref_block_num]"
-            refBlockNum=trans["transaction_header"]["ref_block_num"]
+            key = self.fetchKeyCommand()
+            refBlockNum = self.fetchRefBlock(trans)
             refBlockNum=int(refBlockNum)+1
         except (TypeError, ValueError, KeyError) as _:
             Utils.Print("transaction%s not found. Transaction: %s" % (key, trans))
@@ -384,7 +404,7 @@ class Node(object):
         transId=Node.getTransId(trans)
 
         if stakedDeposit > 0:
-            self.waitForTransInBlock(transId) # seems like account creation needs to be finalized before transfer can happen
+            self.waitForTransactionInBlock(transId) # seems like account creation needs to be finalized before transfer can happen
             trans = self.transferFunds(creatorAccount, account, Node.currencyIntToStr(stakedDeposit, CORE_SYMBOL), "init")
             transId=Node.getTransId(trans)
 
@@ -403,7 +423,7 @@ class Node(object):
         transId=Node.getTransId(trans)
 
         if stakedDeposit > 0:
-            self.waitForTransInBlock(transId) # seems like account creation needs to be finlized before transfer can happen
+            self.waitForTransactionInBlock(transId) # seems like account creation needs to be finlized before transfer can happen
             trans = self.transferFunds(creatorAccount, account, "%0.04f %s" % (stakedDeposit/10000, CORE_SYMBOL), "init")
             self.trackCmdTransaction(trans)
             transId=Node.getTransId(trans)
@@ -420,7 +440,7 @@ class Node(object):
 
     def getTable(self, contract, scope, table, exitOnError=False):
         cmdDesc = "get table"
-        cmd="%s %s %s %s" % (cmdDesc, contract, scope, table)
+        cmd="%s %s %s %s %s" % (cmdDesc, self.cleosLimit, contract, scope, table)
         msg="contract=%s, scope=%s, table=%s" % (contract, scope, table);
         return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
 
@@ -482,12 +502,42 @@ class Node(object):
 
         return None
 
-    def waitForTransInBlock(self, transId, timeout=None):
+    def waitForTransactionInBlock(self, transId, timeout=None):
         """Wait for trans id to be finalized."""
         assert(isinstance(transId, str))
         lam = lambda: self.isTransInAnyBlock(transId)
         ret=Utils.waitForBool(lam, timeout)
         return ret
+
+    def checkBlockForTransactions(self, transIds, blockNum):
+        block = self.fetchBlock(blockNum)
+        if block['payload']['transactions']:
+            for trx in block['payload']['transactions']:
+                if self.fetchTransactionFromTrace(trx) in transIds:
+                    transIds.pop(self.fetchTransactionFromTrace(trx))
+        return transIds
+
+    def waitForTransactionsInBlockRange(self, transIds, startBlock=2, maxFutureBlocks=0):
+        lastBlockProcessed = startBlock
+        overallFinalBlock = startBlock + maxFutureBlocks
+        while len(transIds) > 0:
+            currentLoopEndBlock = self.getHeadBlockNum()
+            if currentLoopEndBlock >  overallFinalBlock:
+                currentLoopEndBlock = overallFinalBlock
+            for blockNum in range(currentLoopEndBlock, lastBlockProcessed - 1, -1):
+                transIds = self.checkBlockForTransactions(transIds, blockNum)
+                if len(transIds) == 0:
+                    return transIds
+            lastBlockProcessed = currentLoopEndBlock
+            if currentLoopEndBlock == overallFinalBlock:
+                Utils.Print("ERROR: Transactions were missing upon expiration of waitOnblockTransactions")
+                break
+            self.waitForHeadToAdvance()
+        return transIds
+
+    def waitForTransactionsInBlock(self, transIds, timeout=None):
+        for transId in transIds:
+            self.waitForTransactionInBlock(transId, timeout)
 
     def waitForTransFinalization(self, transId, timeout=None):
         """Wait for trans id to be finalized."""
@@ -580,7 +630,7 @@ class Node(object):
                 self.trackCmdTransaction(trans, reportStatus=reportStatus)
         except subprocess.CalledProcessError as ex:
             end=time.perf_counter()
-            msg=ex.output.decode("utf-8")
+            msg=ex.stderr.decode("utf-8")
             Utils.Print("ERROR: Exception during funds transfer.  cmd Duration: %.3f sec.  %s" % (end-start, msg))
             if exitOnError:
                 Utils.cmdError("could not transfer \"%s\" from %s to %s" % (amountStr, source, destination))
@@ -604,7 +654,7 @@ class Node(object):
                 Utils.Print("cmd Duration: %.3f sec" % (end-start))
         except subprocess.CalledProcessError as ex:
             end=time.perf_counter()
-            msg=ex.output.decode("utf-8")
+            msg=ex.stderr.decode("utf-8")
             Utils.Print("ERROR: Exception during spawn of funds transfer.  cmd Duration: %.3f sec.  %s" % (end-start, msg))
             if exitOnError:
                 Utils.cmdError("could not transfer \"%s\" from %s to %s" % (amountStr, source, destination))
@@ -764,7 +814,7 @@ class Node(object):
             return m.group(1)
         except subprocess.CalledProcessError as ex:
             end=time.perf_counter()
-            msg=ex.output.decode("utf-8")
+            msg=ex.stderr.decode("utf-8")
             Utils.Print("ERROR: Exception during code hash retrieval.  cmd Duration: %.3f sec.  %s" % (end-start, msg))
             return None
 
@@ -786,23 +836,22 @@ class Node(object):
         except subprocess.CalledProcessError as ex:
             if not shouldFail:
                 end=time.perf_counter()
-                msg=ex.output.decode("utf-8")
-                Utils.Print("ERROR: Exception during set contract.  cmd Duration: %.3f sec.  %s" % (end-start, msg))
+                out=ex.output.decode("utf-8")
+                msg=ex.stderr.decode("utf-8")
+                Utils.Print("ERROR: Exception during set contract. stderr: %s.  stdout: %s.  cmd Duration: %.3f sec." % (msg, out, end-start))
                 return None
             else:
                 retMap={}
                 retMap["returncode"]=ex.returncode
                 retMap["cmd"]=ex.cmd
                 retMap["output"]=ex.output
-                # commented below as they are available only in Python3.5 and above
-                # retMap["stdout"]=ex.stdout
-                # retMap["stderr"]=ex.stderr
+                retMap["stderr"]=ex.stderr
                 return retMap
 
         if shouldFail:
             if trans["processed"]["except"] != None:
                 retMap={}
-                retMap["returncode"]=0
+                retMap["returncode"]=1
                 retMap["cmd"]=cmd
                 retMap["output"]=bytes(str(trans),'utf-8')
                 return retMap
@@ -865,20 +914,22 @@ class Node(object):
                 Utils.Print("cmd Duration: %.3f sec" % (end-start))
             return (Node.getTransStatus(retTrans) == 'executed', retTrans)
         except subprocess.CalledProcessError as ex:
-            msg=ex.output.decode("utf-8")
+            msg=ex.stderr.decode("utf-8")
             if not silentErrors:
                 end=time.perf_counter()
                 Utils.Print("ERROR: Exception during push transaction.  cmd Duration=%.3f sec.  %s" % (end - start, msg))
             return (False, msg)
 
     # returns tuple with transaction execution status and transaction
-    def pushMessage(self, account, action, data, opts, silentErrors=False, signatures=None, expectTrxTrace=True):
+    def pushMessage(self, account, action, data, opts, silentErrors=False, signatures=None, expectTrxTrace=True, force=False):
         cmd="%s %s push action -j %s %s" % (Utils.EosClientPath, self.eosClientArgs(), account, action)
         cmdArr=cmd.split()
         # not using __sign_str, since cmdArr messes up the string
         if signatures is not None:
             cmdArr.append("--sign-with")
             cmdArr.append("[ \"%s\" ]" % ("\", \"".join(signatures)))
+        if force:
+            cmdArr.append("-f")
         if data is not None:
             cmdArr.append(data)
         if opts is not None:
@@ -893,10 +944,11 @@ class Node(object):
                 Utils.Print("cmd Duration: %.3f sec" % (end-start))
             return (Node.getTransStatus(trans) == 'executed' if expectTrxTrace else True, trans)
         except subprocess.CalledProcessError as ex:
-            msg=ex.output.decode("utf-8")
+            msg=ex.stderr.decode("utf-8")
+            output=ex.output.decode("utf-8")
             if not silentErrors:
                 end=time.perf_counter()
-                Utils.Print("ERROR: Exception during push message.  cmd Duration=%.3f sec.  %s" % (end - start, msg))
+                Utils.Print("ERROR: Exception during push message. stderr: %s. stdout: %s.  cmd Duration=%.3f sec." % (msg, output, end - start))
             return (False, msg)
 
     @staticmethod
@@ -994,8 +1046,9 @@ class Node(object):
         except subprocess.CalledProcessError as ex:
             if not silentErrors:
                 end=time.perf_counter()
-                msg=ex.output.decode("utf-8")
-                errorMsg="Exception during \"%s\". Exception message: %s.  cmd Duration=%.3f sec. %s" % (cmdDesc, msg, end-start, exitMsg)
+                out=ex.output.decode("utf-8")
+                msg=ex.stderr.decode("utf-8")
+                errorMsg="Exception during \"%s\". Exception message: %s.  stdout: %s.  cmd Duration=%.3f sec. %s" % (cmdDesc, msg, out, end-start, exitMsg)
                 if exitOnError:
                     Utils.cmdError(errorMsg)
                     Utils.errorExit(errorMsg)
@@ -1015,20 +1068,29 @@ class Node(object):
         assert(isinstance(blockType, BlockType))
         assert(isinstance(returnType, ReturnType))
         basedOnLib="true" if blockType==BlockType.lib else "false"
-        payload="{ \"producer\":\"%s\", \"where_in_sequence\":%d, \"based_on_lib\":\"%s\" }" % (producer, whereInSequence, basedOnLib)
-        return self.processCurlCmd("test_control", "kill_node_on_producer", payload, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=exitMsg, returnType=returnType)
+        payload={ "producer":producer, "where_in_sequence":whereInSequence, "based_on_lib":basedOnLib }
+        return self.processUrllibRequest("test_control", "kill_node_on_producer", payload, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=exitMsg, returnType=returnType)
 
-    def processCurlCmd(self, resource, command, payload, silentErrors=True, exitOnError=False, exitMsg=None, returnType=ReturnType.json):
-        cmd="curl %s/v1/%s/%s -d '%s' -X POST -H \"Content-Type: application/json\"" % \
-            (self.endpointHttp, resource, command, payload)
+    def processUrllibRequest(self, resource, command, payload={}, silentErrors=False, exitOnError=False, exitMsg=None, returnType=ReturnType.json, endpoint=None):
+        if not endpoint:
+            endpoint = self.endpointHttp
+        cmd = f"{endpoint}/v1/{resource}/{command}"
+        req = urllib.request.Request(cmd, method="POST")
+        req.add_header('Content-Type', 'application/json')
+        data = payload
+        data = json.dumps(data)
+        data = data.encode()
         if Utils.Debug: Utils.Print("cmd: %s" % (cmd))
         rtn=None
         start=time.perf_counter()
         try:
+            response = urllib.request.urlopen(req, data=data)
             if returnType==ReturnType.json:
-                rtn=Utils.runCmdReturnJson(cmd, silentErrors=silentErrors)
+                rtn = {}
+                rtn["code"] = response.getcode()
+                rtn["payload"] = json.load(response)
             elif returnType==ReturnType.raw:
-                rtn=Utils.runCmdReturnStr(cmd)
+                rtn = response.read()
             else:
                 unhandledEnumType(returnType)
 
@@ -1036,18 +1098,25 @@ class Node(object):
                 end=time.perf_counter()
                 Utils.Print("cmd Duration: %.3f sec" % (end-start))
                 printReturn=json.dumps(rtn) if returnType==ReturnType.json else rtn
-                Utils.Print("cmd returned: %s" % (printReturn))
-        except subprocess.CalledProcessError as ex:
+                Utils.Print("cmd returned: %s" % (printReturn[:1024]))
+        except urllib.error.HTTPError as ex:
             if not silentErrors:
                 end=time.perf_counter()
-                msg=ex.output.decode("utf-8")
+                msg=ex.msg
                 errorMsg="Exception during \"%s\". %s.  cmd Duration=%.3f sec." % (cmd, msg, end-start)
                 if exitOnError:
                     Utils.cmdError(errorMsg)
                     Utils.errorExit(errorMsg)
                 else:
                     Utils.Print("ERROR: %s" % (errorMsg))
-            return None
+                    if returnType==ReturnType.json:
+                        rtn = json.load(ex)
+                    elif returnType==ReturnType.raw:
+                        rtn = ex.read()
+                    else:
+                        unhandledEnumType(returnType)
+            else:
+                return None
 
         if exitMsg is not None:
             exitMsg=": " + exitMsg
@@ -1064,8 +1133,8 @@ class Node(object):
         assert(isinstance(genKey, str))
         assert(isinstance(returnType, ReturnType))
 
-        payload="[ \"%s\", \"%s\" ]" % (genAccount, genKey)
-        return self.processCurlCmd("txn_test_gen", "create_test_accounts", payload, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=exitMsg, returnType=returnType)
+        payload=[ genAccount, genKey ]
+        return self.processUrllibRequest("txn_test_gen", "create_test_accounts", payload, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=exitMsg, returnType=returnType)
 
     def txnGenStart(self, salt, period, batchSize, silentErrors=True, exitOnError=False, exitMsg=None, returnType=ReturnType.json):
         assert(isinstance(salt, str))
@@ -1073,15 +1142,15 @@ class Node(object):
         assert(isinstance(batchSize, int))
         assert(isinstance(returnType, ReturnType))
 
-        payload="[ \"%s\", %d, %d ]" % (salt, period, batchSize)
-        return self.processCurlCmd("txn_test_gen", "start_generation", payload, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=exitMsg, returnType=returnType)
+        payload=[ salt, period, batchSize ]
+        return self.processUrllibRequest("txn_test_gen", "start_generation", payload, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=exitMsg, returnType=returnType)
 
     def waitForTransBlockIfNeeded(self, trans, waitForTransBlock, exitOnError=False):
         if not waitForTransBlock:
             return trans
 
         transId=Node.getTransId(trans)
-        if not self.waitForTransInBlock(transId):
+        if not self.waitForTransactionInBlock(transId):
             if exitOnError:
                 Utils.cmdError("transaction with id %s never made it to a block" % (transId))
                 Utils.errorExit("Failed to find transaction with id %s in a block before timeout" % (transId))
@@ -1405,7 +1474,7 @@ class Node(object):
     # Require producer_api_plugin
     def scheduleProtocolFeatureActivations(self, featureDigests=[]):
         param = { "protocol_features_to_activate": featureDigests }
-        self.processCurlCmd("producer", "schedule_protocol_feature_activations", json.dumps(param))
+        self.processUrllibRequest("producer", "schedule_protocol_feature_activations", param)
 
     # Require producer_api_plugin
     def getSupportedProtocolFeatures(self, excludeDisabled=False, excludeUnactivatable=False):
@@ -1413,7 +1482,7 @@ class Node(object):
            "exclude_disabled": excludeDisabled,
            "exclude_unactivatable": excludeUnactivatable
         }
-        res = self.processCurlCmd("producer", "get_supported_protocol_features", json.dumps(param))
+        res = self.processUrllibRequest("producer", "get_supported_protocol_features", param)
         return res
 
     # This will return supported protocol features in a dict (feature codename as the key), i.e.
@@ -1425,7 +1494,7 @@ class Node(object):
     def getSupportedProtocolFeatureDict(self, excludeDisabled=False, excludeUnactivatable=False):
         protocolFeatureDigestDict = {}
         supportedProtocolFeatures = self.getSupportedProtocolFeatures(excludeDisabled, excludeUnactivatable)
-        for protocolFeature in supportedProtocolFeatures:
+        for protocolFeature in supportedProtocolFeatures["payload"]:
             for spec in protocolFeature["specification"]:
                 if (spec["name"] == "builtin_feature_codename"):
                     codename = spec["value"]
@@ -1476,7 +1545,7 @@ class Node(object):
     def getAllBuiltinFeatureDigestsToPreactivate(self):
         protocolFeatures = []
         supportedProtocolFeatures = self.getSupportedProtocolFeatures()
-        for protocolFeature in supportedProtocolFeatures:
+        for protocolFeature in supportedProtocolFeatures["payload"]:
             for spec in protocolFeature["specification"]:
                 if (spec["name"] == "builtin_feature_codename"):
                     codename = spec["value"]
@@ -1526,8 +1595,7 @@ class Node(object):
 
     # Require producer_api_plugin
     def createSnapshot(self):
-        param = { }
-        return self.processCurlCmd("producer", "create_snapshot", json.dumps(param))
+        return self.processUrllibRequest("producer", "create_snapshot")
 
     # kill all existing nodeos in case lingering from previous test
     @staticmethod

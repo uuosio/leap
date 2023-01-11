@@ -105,7 +105,8 @@ Options:
 #include <fc/io/fstream.hpp>
 
 #define CLI11_HAS_FILESYSTEM 0
-#include "CLI11.hpp"
+#include <CLI/CLI.hpp>
+
 #include "help_text.hpp"
 #include "localize.hpp"
 #include "config.hpp"
@@ -154,32 +155,32 @@ std::string clean_output( std::string str ) {
    return fc::escape_string( str, nullptr, escape_control_chars );
 }
 
-string default_url = "http://127.0.0.1:8888/";
+string default_url = "http://127.0.0.1:8888";
 string default_wallet_url = "unix://" + (determine_home_directory() / "eosio-wallet" / (string(key_store_executable_name) + ".sock")).string();
 string wallet_url; //to be set to default_wallet_url in main
 std::map<name, std::string>  abi_files_override;
-bool no_verify = false;
-vector<string> headers;
 
 auto   tx_expiration = fc::seconds(30);
 const fc::microseconds abi_serializer_max_time = fc::seconds(10); // No risk to client side serialization taking a long time
 string tx_ref_block_num_or_id;
 bool   tx_force_unique = false;
 bool   tx_dont_broadcast = false;
+bool   tx_unpack_data = false;
 bool   tx_return_packed = false;
 bool   tx_skip_sign = false;
 bool   tx_print_json = false;
 bool   tx_rtn_failure_trace = true;
 bool   tx_read_only = false;
+bool   tx_dry_run = false;
 bool   tx_retry_lib = false;
 uint16_t tx_retry_num_blocks = 0;
 bool   tx_use_old_rpc = false;
 bool   tx_use_old_send_rpc = false;
 string tx_json_save_file;
-bool   print_request = false;
-bool   print_response = false;
+eosio::client::http::config_t http_config;
 bool   no_auto_keosd = false;
 bool   verbose = false;
+int    return_code = 0;
 
 uint8_t  tx_max_cpu_usage = 0;
 uint32_t tx_max_net_usage = 0;
@@ -187,8 +188,6 @@ uint32_t tx_max_net_usage = 0;
 uint32_t delaysec = 0;
 
 vector<string> tx_permission;
-
-eosio::client::http::http_context context;
 
 enum class tx_compression_type {
    none,
@@ -226,6 +225,7 @@ void add_standard_transaction_options(CLI::App* cmd, string default_permission =
    cmd->add_flag("-j,--json", tx_print_json, localized("Print result as JSON"));
    cmd->add_option("--json-file", tx_json_save_file, localized("Save result in JSON format into a file"));
    cmd->add_flag("-d,--dont-broadcast", tx_dont_broadcast, localized("Don't broadcast transaction to the network (just print to stdout)"));
+   cmd->add_flag("-u,--unpack-action-data", tx_unpack_data, localized("Unpack all action data within transaction, needs interaction with ${n} unless --abi-file. Used in conjunction with --dont-broadcast.", ("n", node_executable_name)));
    cmd->add_flag("--return-packed", tx_return_packed, localized("Used in conjunction with --dont-broadcast to get the packed transaction"));
    cmd->add_option("-r,--ref-block", tx_ref_block_num_or_id, (localized("Set the reference block num or block id used for TAPOS (Transaction as Proof-of-Stake)")));
    cmd->add_flag("--use-old-rpc", tx_use_old_rpc, localized("Use old RPC push_transaction, rather than new RPC send_transaction"));
@@ -315,10 +315,9 @@ fc::variant call( const std::string& url,
                   const std::string& path,
                   const T& v ) {
    try {
-      auto sp = std::make_unique<eosio::client::http::connection_param>(context, parse_url(url) + path, no_verify ? false : true, headers);
-      return eosio::client::http::do_http_call(*sp, fc::variant(v), print_request, print_response );
+      return eosio::client::http::do_http_call(http_config, url, path, fc::variant(v));
    }
-   catch(boost::system::system_error& e) {
+   catch(connection_exception& e) {
       std::string exec_name;
       if(url == ::default_url) {
          exec_name = node_executable_name;
@@ -326,9 +325,9 @@ fc::variant call( const std::string& url,
          exec_name = key_store_executable_name;
       }
       std::cerr << localized( "Failed http request to ${n} at ${u}; is ${n} running?\n"
-                              "  Error: ${e}",
-                              ("n", exec_name)("u", url)("e", e.what()) ) << std::endl;
-      throw connection_exception(fc::log_messages{FC_LOG_MESSAGE(error, e.what())});
+                              "  Error: Connection refused or malformed URL",
+                              ("n", exec_name)("u", url)) << std::endl;
+      throw;
    }
 }
 
@@ -437,7 +436,7 @@ fc::variant push_transaction( signed_transaction& trx, const std::vector<public_
       trx.delay_sec = delaysec;
    }
 
-   if (!tx_skip_sign) {
+   auto sign_trx = [&] () {
       fc::variant required_keys;
       if (signing_keys.size() > 0) {
          required_keys = fc::variant(signing_keys);
@@ -446,6 +445,16 @@ fc::variant push_transaction( signed_transaction& trx, const std::vector<public_
          required_keys = determine_required_keys(trx);
       }
       sign_transaction(trx, required_keys, info.chain_id);
+   };
+   if (!tx_skip_sign) {
+      // sign dry-run transactions only when explcitly requested
+      if ( tx_dry_run ) {
+         if ( signing_keys.size() > 0 ) {
+            sign_trx();
+         }
+      } else {
+         sign_trx();
+      }
    }
 
    packed_transaction::compression_type compression = to_compression_type( tx_compression );
@@ -454,12 +463,14 @@ fc::variant push_transaction( signed_transaction& trx, const std::vector<public_
       EOSC_ASSERT( !(tx_retry_lib && tx_retry_num_blocks > 0), "ERROR: --retry-irreversible and --retry-num-blocks are mutually exclusive" );
       if (tx_use_old_rpc) {
          EOSC_ASSERT( !tx_read_only, "ERROR: --read-only can not be used with --use-old-rpc" );
+         EOSC_ASSERT( !tx_dry_run, "ERROR: --dry-run can not be used with --use-old-rpc" );
          EOSC_ASSERT( !tx_rtn_failure_trace, "ERROR: --return-failure-trace can not be used with --use-old-rpc" );
          EOSC_ASSERT( !tx_retry_lib, "ERROR: --retry-irreversible can not be used with --use-old-rpc" );
          EOSC_ASSERT( !tx_retry_num_blocks, "ERROR: --retry-num-blocks can not be used with --use-old-rpc" );
          return call( push_txn_func, packed_transaction( trx, compression ) );
       } else if (tx_use_old_send_rpc) {
          EOSC_ASSERT( !tx_read_only, "ERROR: --read-only can not be used with --use-old-send-rpc" );
+         EOSC_ASSERT( !tx_dry_run, "ERROR: --dry-run can not be used with --use-old-send-rpc" );
          EOSC_ASSERT( !tx_rtn_failure_trace, "ERROR: --return-failure-trace can not be used with --use-old-send-rpc" );
          EOSC_ASSERT( !tx_retry_lib, "ERROR: --retry-irreversible can not be used with --use-old-send-rpc" );
          EOSC_ASSERT( !tx_retry_num_blocks, "ERROR: --retry-num-blocks can not be used with --use-old-send-rpc" );
@@ -470,9 +481,9 @@ fc::variant push_transaction( signed_transaction& trx, const std::vector<public_
             throw;
          }
       } else {
-         if( tx_read_only ) {
-            EOSC_ASSERT( !tx_retry_lib, "ERROR: --retry-irreversible can not be used with --read-only" );
-            EOSC_ASSERT( !tx_retry_num_blocks, "ERROR: --retry-num-blocks can not be used with --read-only" );
+         if( tx_dry_run || tx_read_only ) {
+            EOSC_ASSERT( !tx_retry_lib, "ERROR: --retry-irreversible can not be used with --dry-run or --read-only" );
+            EOSC_ASSERT( !tx_retry_num_blocks, "ERROR: --retry-num-blocks can not be used with --dry-run or --read-only" );
             try {
                auto compute_txn_arg = fc::mutable_variant_object ("transaction",
                                                                   packed_transaction(trx,compression));
@@ -499,14 +510,15 @@ fc::variant push_transaction( signed_transaction& trx, const std::vector<public_
       }
    } else {
       if (!tx_return_packed) {
-         try {
+         if( tx_unpack_data ) {
             fc::variant unpacked_data_trx;
             abi_serializer::to_variant(trx, unpacked_data_trx, abi_serializer_resolver, abi_serializer::create_yield_function(abi_serializer_max_time));
             return unpacked_data_trx;
-         } catch (...) {
+         } else {
             return fc::variant(trx);
          }
       } else {
+         EOSC_ASSERT( !tx_unpack_data, "ERROR: --unpack-action-data not supported with --return-packed" );
         return fc::variant(packed_transaction(trx, compression));
       }
    }
@@ -619,6 +631,32 @@ void print_action_tree( const fc::variant& action ) {
    }
 }
 
+int get_return_code( const fc::variant& result ) {
+   // if a trx with a processed, then check to see if it failed execution for return value
+   int r = 0;
+   if (result.is_object() && result.get_object().contains("processed")) {
+      const auto& processed = result["processed"];
+      if( processed.is_object() && processed.get_object().contains( "except" ) ) {
+         const auto& except = processed["except"];
+         if( except.is_object() ) {
+            try {
+               auto soft_except = except.as<fc::exception>();
+               auto code = soft_except.code();
+               if( code > std::numeric_limits<int>::max() ) {
+                  r = 1;
+               } else {
+                  r = static_cast<int>( code );
+               }
+               if( r == 0 ) r = 1;
+            } catch( ... ) {
+               r = 1;
+            }
+         }
+      }
+   }
+   return r;
+}
+
 void print_result( const fc::variant& result ) { try {
       if (result.is_object() && result.get_object().contains("processed")) {
          const auto& processed = result["processed"];
@@ -682,6 +720,7 @@ void send_actions(std::vector<chain::action>&& actions, const std::vector<public
       out << jsonstr;
       out.close();
    }
+   return_code = get_return_code( result );
    if( tx_print_json ) {
       if (jsonstr.length() == 0) {
          jsonstr = fc::json::to_pretty_string( result );
@@ -1012,7 +1051,7 @@ struct set_action_permission_subcommand {
    string requirementStr;
 
    set_action_permission_subcommand(CLI::App* actionRoot) {
-      auto permissions = actionRoot->add_subcommand("permission", localized("Set paramaters dealing with account permissions"));
+      auto permissions = actionRoot->add_subcommand("permission", localized("Set parameters dealing with account permissions"));
       permissions->add_option("account", accountStr, localized("The account to set/delete a permission authority for"))->required();
       permissions->add_option("code", codeStr, localized("The account that owns the code for the action"))->required();
       permissions->add_option("type", typeStr, localized("The type of the action"))->required();
@@ -1137,8 +1176,8 @@ struct register_producer_subcommand {
       auto register_producer = actionRoot->add_subcommand("regproducer", localized("Register a new producer"));
       register_producer->add_option("account", producer_str, localized("The account to register as a producer"))->required();
       register_producer->add_option("producer_key", producer_key_str, localized("The producer's public key"))->required();
-      register_producer->add_option("url", url, localized("The URL where info about producer can be found"), true);
-      register_producer->add_option("location", loc, localized("Relative location for purpose of nearest neighbor scheduling"), true);
+      register_producer->add_option<string>("url", url, localized("The URL where info about producer can be found"))->capture_default_str();
+      register_producer->add_option("location", loc, localized("Relative location for purpose of nearest neighbor scheduling"))->capture_default_str();
       add_standard_transaction_options_plus_signing(register_producer, "account@active");
 
 
@@ -1420,6 +1459,7 @@ struct unapprove_producer_subcommand {
 struct list_producers_subcommand {
    bool print_json = false;
    uint32_t limit = 50;
+   uint32_t time_limit_ms = 10;
    std::string lower;
 
    list_producers_subcommand(CLI::App* actionRoot) {
@@ -1427,15 +1467,18 @@ struct list_producers_subcommand {
       list_producers->add_flag("--json,-j", print_json, localized("Output in JSON format"));
       list_producers->add_option("-l,--limit", limit, localized("The maximum number of rows to return"));
       list_producers->add_option("-L,--lower", lower, localized("Lower bound value of key, defaults to first"));
+      list_producers->add_option("--time-limit", time_limit_ms, localized("Limit time of execution in milliseconds, defaults to 10ms"));
       list_producers->callback([this] {
-         auto rawResult = call(get_producers_func, fc::mutable_variant_object
-            ("json", true)("lower_bound", lower)("limit", limit));
+         fc::mutable_variant_object mo;
+         mo("json", true)("lower_bound", lower)("limit", limit);
+         if( time_limit_ms != 10 ) mo("time_limit_ms", time_limit_ms);
+         auto rawResult = call(get_producers_func, mo);
          if ( print_json ) {
             std::cout << fc::json::to_pretty_string(rawResult) << std::endl;
             return;
          }
          auto result = rawResult.as<eosio::chain_apis::read_only::get_producers_result>();
-         if ( result.rows.empty() ) {
+         if ( result.rows.empty() && result.more.empty() ) {
             std::cout << "No producers found" << std::endl;
             return;
          }
@@ -2402,7 +2445,7 @@ void get_account( const string& accountName, const string& coresym, bool json_fo
          // looks a little crazy, but should be efficient
          cache.insert( std::make_pair(name, std::move(perm)) );
       }
-      
+
       using dfs_fn_t = std::function<void (const eosio::chain_apis::permission&, int)>;
       std::function<void (account_name, int, dfs_fn_t&)> dfs_exec = [&]( account_name name, int depth, dfs_fn_t& f ) -> void {
          auto& p = cache.at(name);
@@ -2456,7 +2499,7 @@ void get_account( const string& accountName, const string& coresym, bool json_fo
          dfs_exec( r, 0, print_links);
       }
 
-      // print linked actions 
+      // print linked actions
       std::cout << indent << "eosio.any: " << std::endl;
       for (const auto& it : res.eosio_any_linked_actions) {
          auto action_value = it.action ? it.action->to_string() : std::string("*");
@@ -2464,7 +2507,7 @@ void get_account( const string& accountName, const string& coresym, bool json_fo
       }
 
       std::cout << std::endl;
- 
+
       auto to_pretty_net = []( int64_t nbytes, uint8_t width_for_units = 5 ) {
          if(nbytes == -1) {
              // special case. Treat it as unlimited
@@ -2692,7 +2735,7 @@ CLI::callback_t header_opt_callback = [](CLI::results_t res) {
    vector<string>::iterator itr;
 
    for (itr = res.begin(); itr != res.end(); itr++) {
-       headers.push_back(*itr);
+       http_config.headers.push_back(*itr);
    }
 
    return true;
@@ -2715,33 +2758,54 @@ CLI::callback_t abi_files_overide_callback = [](CLI::results_t account_abis) {
    return true;
 };
 
+struct set_url_no_trailing_slash {
+   std::string& url;
+   set_url_no_trailing_slash(std::string& bind_arg) : url(bind_arg) {}
+   void operator()(const std::string& from) const {
+      url = from;
+      if (url.size() && url.back()=='/') url.resize(url.size()-1); // remove trailing slash
+   }
+};
 
 int main( int argc, char** argv ) {
 
    fc::logger::get(DEFAULT_LOGGER).set_log_level(fc::log_level::debug);
-   context = eosio::client::http::create_http_context();
+
    wallet_url = default_wallet_url;
 
    CLI::App app{"Command Line Interface to EOSIO Client"};
+
+   // custom leap formatter
+   auto fmt = std::make_shared<CLI::LeapFormatter>();
+   app.formatter(fmt);
+
+   // enable help-all, display help on error
+   app.set_help_all_flag("--help-all", "Show all help");
+   app.failure_message(CLI::FailureMessage::help);
    app.require_subcommand();
+
    // Hide obsolete options by putting them into a group with an empty name.
    app.add_option( "-H,--host", obsoleted_option_host_port, localized("The host where ${n} is running", ("n", node_executable_name)) )->group("");
    app.add_option( "-p,--port", obsoleted_option_host_port, localized("The port where ${n} is running", ("n", node_executable_name)) )->group("");
    app.add_option( "--wallet-host", obsoleted_option_host_port, localized("The host where ${k} is running", ("k", key_store_executable_name)) )->group("");
    app.add_option( "--wallet-port", obsoleted_option_host_port, localized("The port where ${k} is running", ("k", key_store_executable_name)) )->group("");
 
-   app.add_option( "-u,--url", ::default_url, localized( "The http/https URL where ${n} is running", ("n", node_executable_name)), true );
-   app.add_option( "--wallet-url", wallet_url, localized("The http/https URL where ${k} is running", ("k", key_store_executable_name)), true );
+   app.add_option_function<std::string>( "-u,--url", set_url_no_trailing_slash(::default_url),
+      localized( "The http/https URL where ${n} is running", ("n", node_executable_name)))->default_str(::default_url);
+   app.add_option_function<std::string>( "--wallet-url", set_url_no_trailing_slash(wallet_url),
+      localized("The http/https URL where ${k} is running", ("k", key_store_executable_name)))->default_str(::default_wallet_url);
 
    app.add_option( "--abi-file", abi_files_overide_callback, localized("In form of <contract name>:<abi file path>, use a local abi file for serialization and deserialization instead of getting the abi data from the blockchain; repeat this option to pass multiple abi files for different contracts"))->type_size(0, 1000);
    app.add_option( "-r,--header", header_opt_callback, localized("Pass specific HTTP header; repeat this option to pass multiple headers"));
-   app.add_flag( "-n,--no-verify", no_verify, localized("Don't verify peer certificate when using HTTPS"));
+   app.add_flag( "-n,--no-verify", http_config.no_verify_cert, localized("Don't verify peer certificate when using HTTPS"));
    app.add_flag( "--no-auto-" + string(key_store_executable_name), no_auto_keosd, localized("Don't automatically launch a ${k} if one is not currently running", ("k", key_store_executable_name)));
    app.parse_complete_callback([&app]{ ensure_keosd_running(&app);});
 
    app.add_flag( "-v,--verbose", verbose, localized("Output verbose errors and action console output"));
-   app.add_flag("--print-request", print_request, localized("Print HTTP request to STDERR"));
-   app.add_flag("--print-response", print_response, localized("Print HTTP response to STDERR"));
+   app.add_flag("--print-request", http_config.print_request, localized("Print HTTP request to STDERR"));
+   app.add_flag("--print-response", http_config.print_response, localized("Print HTTP response to STDERR"));
+   app.add_flag("--http-verbose", http_config.verbose, localized("Print HTTP verbose information to STDERR"));
+   app.add_flag("--http-trace", http_config.trace, localized("Print HTTP debug trace information to STDERR"));
 
    auto version = app.add_subcommand("version", localized("Retrieve version information"));
    version->require_subcommand();
@@ -2880,7 +2944,7 @@ int main( int argc, char** argv ) {
    string str_chain_id;
    auto validate_signatures = validate->add_subcommand("signatures", localized("Validate signatures and recover public keys"));
    validate_signatures->add_option("transaction", trx_json_to_validate,
-                                   localized("The JSON string or filename defining the transaction to validate"), true)->required();
+                                   localized("The JSON string or filename defining the transaction to validate"))->required()->capture_default_str();
    validate_signatures->add_option("-c,--chain-id", str_chain_id, localized("The chain id that will be used in signature verification"));
 
    validate_signatures->callback([&] {
@@ -3060,6 +3124,7 @@ int main( int argc, char** argv ) {
    string encode_type{"dec"};
    bool binary = false;
    uint32_t limit = 10;
+   uint32_t time_limit_ms = 10;
    string index_position;
    bool reverse = false;
    bool show_payer = false;
@@ -3068,6 +3133,7 @@ int main( int argc, char** argv ) {
    getTable->add_option( "scope", scope, localized("The scope within the contract in which the table is found") )->required();
    getTable->add_option( "table", table, localized("The name of the table as specified by the contract abi") )->required();
    getTable->add_option( "-l,--limit", limit, localized("The maximum number of rows to return") );
+   getTable->add_option( "--time-limit", time_limit_ms, localized("Limit time of execution in milliseconds, defaults to 10ms"));
    getTable->add_option( "-k,--key", table_key, localized("Deprecated") );
    getTable->add_option( "-L,--lower", lower, localized("JSON representation of lower bound value of key, defaults to first") );
    getTable->add_option( "-U,--upper", upper, localized("JSON representation of upper bound value of key, defaults to last") );
@@ -3086,20 +3152,22 @@ int main( int argc, char** argv ) {
 
 
    getTable->callback([&] {
-      auto result = call(get_table_func, fc::mutable_variant_object("json", !binary)
-                         ("code",code)
-                         ("scope",scope)
-                         ("table",table)
-                         ("table_key",table_key) // not used
-                         ("lower_bound",lower)
-                         ("upper_bound",upper)
-                         ("limit",limit)
-                         ("key_type",key_type)
-                         ("index_position", index_position)
-                         ("encode_type", encode_type)
-                         ("reverse", reverse)
-                         ("show_payer", show_payer)
-                         );
+      fc::mutable_variant_object mo;
+      mo( "json", !binary )
+        ( "code", code )
+        ( "scope", scope )
+        ( "table", table )
+        ( "table_key", table_key ) // not used
+        ( "lower_bound", lower )
+        ( "upper_bound", upper )
+        ( "limit", limit )
+        ( "key_type", key_type )
+        ( "index_position", index_position )
+        ( "encode_type", encode_type )
+        ( "reverse", reverse )
+        ( "show_payer", show_payer );
+      if( time_limit_ms != 10 ) mo( "time_limit_ms", time_limit_ms );
+      auto result = call( get_table_func, mo );
 
       std::cout << fc::json::to_pretty_string(result)
                 << std::endl;
@@ -3109,17 +3177,21 @@ int main( int argc, char** argv ) {
    getScope->add_option( "contract", code, localized("The contract who owns the table") )->required();
    getScope->add_option( "-t,--table", table, localized("The name of the table as filter") );
    getScope->add_option( "-l,--limit", limit, localized("The maximum number of rows to return") );
+   getScope->add_option( "--time-limit", time_limit_ms, localized("Limit time of execution in milliseconds, defaults to 10ms"));
    getScope->add_option( "-L,--lower", lower, localized("Lower bound of scope") );
    getScope->add_option( "-U,--upper", upper, localized("Upper bound of scope") );
    getScope->add_flag("-r,--reverse", reverse, localized("Iterate in reverse order"));
    getScope->callback([&] {
-      auto result = call(get_table_by_scope_func, fc::mutable_variant_object("code",code)
-                         ("table",table)
-                         ("lower_bound",lower)
-                         ("upper_bound",upper)
-                         ("limit",limit)
-                         ("reverse", reverse)
-                         );
+      fc::mutable_variant_object mo;
+      mo( "code", code )
+        ( "table", table )
+        ( "lower_bound", lower )
+        ( "upper_bound", upper )
+        ( "limit", limit )
+        ( "reverse", reverse );
+      if( time_limit_ms != 10 ) mo( "time_limit_ms", time_limit_ms );
+      auto result = call( get_table_by_scope_func, mo );
+
       std::cout << fc::json::to_pretty_string(result)
                 << std::endl;
    });
@@ -3357,7 +3429,7 @@ int main( int argc, char** argv ) {
                      // ->required();
    contractSubcommand->add_option("wasm-file", wasmPath, localized("The file containing the contract WASM relative to contract-dir"));
 //                     ->check(CLI::ExistingFile);
-   auto abi = contractSubcommand->add_option("abi-file,-a,--abi", abiPath, localized("The ABI for the contract relative to contract-dir"));
+   contractSubcommand->add_option("abi-file,-a,--abi", abiPath, localized("The ABI for the contract relative to contract-dir"));
 //                                ->check(CLI::ExistingFile);
    contractSubcommand->add_flag( "-c,--clear", contract_clear, localized("Remove contract on an account"));
    contractSubcommand->add_flag( "--suppress-duplicate-check", suppress_duplicate_check, localized("Don't check for duplicate"));
@@ -3384,9 +3456,9 @@ int main( int argc, char** argv ) {
         fc::path cpath = fc::canonical(fc::path(contractPath));
 
         if( wasmPath.empty() ) {
-           wasmPath = (cpath / (cpath.filename().generic_string()+".wasm")).generic_string();
+           wasmPath = (cpath / fc::path(cpath.filename().generic_string()+".wasm")).generic_string();
         } else if ( boost::filesystem::path(wasmPath).is_relative() ) {
-           wasmPath = (cpath / wasmPath).generic_string();
+           wasmPath = (cpath / fc::path(wasmPath)).generic_string();
         }
 
         std::cerr << localized(("Reading WASM from " + wasmPath + "...").c_str()) << std::endl;
@@ -3440,9 +3512,9 @@ int main( int argc, char** argv ) {
         fc::path cpath = fc::canonical(fc::path(contractPath));
 
         if( abiPath.empty() ) {
-           abiPath = (cpath / (cpath.filename().generic_string()+".abi")).generic_string();
+           abiPath = (cpath / fc::path(cpath.filename().generic_string()+".abi")).generic_string();
         } else if ( boost::filesystem::path(abiPath).is_relative() ) {
-           abiPath = (cpath / abiPath).generic_string();
+           abiPath = (cpath / fc::path(abiPath)).generic_string();
         }
 
         EOS_ASSERT( fc::exists( abiPath ), abi_file_not_found, "no abi file found ${f}", ("f", abiPath)  );
@@ -3577,7 +3649,7 @@ int main( int argc, char** argv ) {
    string wallet_name = "default";
    string password_file;
    auto createWallet = wallet->add_subcommand("create", localized("Create a new wallet locally"));
-   createWallet->add_option("-n,--name", wallet_name, localized("The name of the new wallet"), true);
+   createWallet->add_option("-n,--name", wallet_name, localized("The name of the new wallet"))->capture_default_str();
    createWallet->add_option("-f,--file", password_file, localized("Name of file to write wallet password output to. (Must be set, unless \"--to-console\" is passed"));
    createWallet->add_flag( "--to-console", print_console, localized("Print password to console."));
    createWallet->callback([&wallet_name, &password_file, &print_console] {
@@ -3683,8 +3755,8 @@ int main( int argc, char** argv ) {
    // create a key within wallet
    string wallet_create_key_type;
    auto createKeyInWallet = wallet->add_subcommand("create_key", localized("Create private key within wallet"));
-   createKeyInWallet->add_option("-n,--name", wallet_name, localized("The name of the wallet to create key into"), true);
-   createKeyInWallet->add_option("key_type", wallet_create_key_type, localized("Key type to create (K1/R1)"), true)->type_name("K1/R1");
+   createKeyInWallet->add_option("-n,--name", wallet_name, localized("The name of the wallet to create key into"))->capture_default_str();
+   createKeyInWallet->add_option("key_type", wallet_create_key_type, localized("Key type to create (K1/R1)"))->type_name("K1/R1")->capture_default_str();
    createKeyInWallet->callback([&wallet_name, &wallet_create_key_type] {
       //an empty key type is allowed -- it will let the underlying wallet pick which type it prefers
       fc::variants vs = {fc::variant(wallet_name), fc::variant(wallet_create_key_type)};
@@ -3709,7 +3781,7 @@ int main( int argc, char** argv ) {
 
    // list private keys
    auto listPrivKeys = wallet->add_subcommand("private_keys", localized("List of private keys from an unlocked wallet in wif or PVT_R1 format."));
-   listPrivKeys->add_option("-n,--name", wallet_name, localized("The name of the wallet to list keys from"), true);
+   listPrivKeys->add_option("-n,--name", wallet_name, localized("The name of the wallet to list keys from"))->capture_default_str();
    listPrivKeys->add_option("--password", wallet_pw, localized("The password returned by wallet create"))->expected(0, 1);
    listPrivKeys->callback([&wallet_name, &wallet_pw] {
       prompt_for_wallet_password(wallet_pw, wallet_name);
@@ -3738,7 +3810,7 @@ int main( int argc, char** argv ) {
 
    auto sign = app.add_subcommand("sign", localized("Sign a transaction"));
    sign->add_option("transaction", trx_json_to_sign,
-                                 localized("The JSON string or filename defining the transaction to sign"), true)->required();
+                                 localized("The JSON string or filename defining the transaction to sign"))->required()->capture_default_str();
    sign->add_option("-k,--private-key", str_private_key, localized("The private key that will be used to sign the transaction"))->expected(0, 1);
    sign->add_option("--public-key", str_public_key, localized("Ask ${exec} to sign with the corresponding private key of the given public key", ("exec", key_store_executable_name)));
    sign->add_option("-c,--chain-id", str_chain_id, localized("The chain id that will be used to sign the transaction"));
@@ -3749,7 +3821,7 @@ int main( int argc, char** argv ) {
       EOSC_ASSERT( str_private_key.empty() || str_public_key.empty(), "ERROR: Either -k/--private-key or --public-key or none of them can be set" );
       fc::variant trx_var = json_from_file_or_string(trx_json_to_sign);
 
-      // If transaction was packed, unpack it before signing 
+      // If transaction was packed, unpack it before signing
       bool was_packed_trx = false;
       if( trx_var.is_object() ) {
          fc::variant_object& vo = trx_var.get_object();
@@ -3826,9 +3898,9 @@ int main( int argc, char** argv ) {
    auto actionsSubcommand = push->add_subcommand("action", localized("Push a transaction with a single action"));
    actionsSubcommand->fallthrough(false);
    actionsSubcommand->add_option("account", contract_account,
-                                 localized("The account providing the contract to execute"), true)->required();
+                                 localized("The account providing the contract to execute"))->required()->capture_default_str();
    actionsSubcommand->add_option("action", action,
-                                 localized("A JSON string or filename defining the action to execute on the contract"), true)->required();
+                                 localized("A JSON string or filename defining the action to execute on the contract"))->required()->capture_default_str();
    actionsSubcommand->add_option("data", data, localized("The arguments to the contract"))->required();
 
    add_standard_transaction_options_plus_signing(actionsSubcommand);
@@ -3859,7 +3931,8 @@ int main( int argc, char** argv ) {
    trxSubcommand->add_option("transaction", trx_to_push, localized("The JSON string or filename defining the transaction to push"))->required();
    trxSubcommand->add_option("--signature", extra_sig_opt_callback, localized("append a signature to the transaction; repeat this option to append multiple signatures"))->type_size(0, 1000);
    add_standard_transaction_options_plus_signing(trxSubcommand);
-   trxSubcommand->add_flag("-o,--read-only", tx_read_only, localized("Specify a transaction is read-only"));
+   trxSubcommand->add_flag("-o,--read-only", tx_read_only, localized("Deprecated, use --dry-run instead"));
+   trxSubcommand->add_flag("--dry-run", tx_dry_run, localized("Specify a transaction is dry-run"));
 
    trxSubcommand->callback([&] {
       fc::variant trx_var = json_from_file_or_string(trx_to_push);
@@ -4073,13 +4146,11 @@ int main( int argc, char** argv ) {
             const auto& approvals_object = rows2[0].get_object();
 
             for( const auto& ra : approvals_object["requested_approvals"].get_array() ) {
-               const auto& ra_obj = ra.get_object();
                auto pl = ra["level"].as<permission_level>();
                all_approvals.emplace( pl, std::make_pair(ra["time"].as<fc::time_point>(), approval_status::unapproved) );
             }
 
             for( const auto& pa : approvals_object["provided_approvals"].get_array() ) {
-               const auto& pa_obj = pa.get_object();
                auto pl = pa["level"].as<permission_level>();
                auto res = all_approvals.emplace( pl, std::make_pair(pa["time"].as<fc::time_point>(), approval_status::approved) );
                provided_approvers[pl.actor].second.push_back( res.first );
@@ -4421,14 +4492,16 @@ int main( int argc, char** argv ) {
       }
       return 1;
    } catch ( const std::bad_alloc& ) {
-     elog("bad alloc");
+      elog("bad alloc");
+      return 1;
    } catch( const boost::interprocess::bad_alloc& ) {
-     elog("bad alloc");
+      elog("bad alloc");
+      return 1;
    } catch (const fc::exception& e) {
-     return handle_error(e);
+      return handle_error(e);
    } catch (const std::exception& e) {
-      return handle_error(fc::std_exception_wrapper::from_current_exception(e)); 
+      return handle_error(fc::std_exception_wrapper::from_current_exception(e));
    }
 
-   return 0;
+   return return_code;
 }

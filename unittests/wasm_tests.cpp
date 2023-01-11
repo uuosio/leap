@@ -71,7 +71,9 @@ FC_REFLECT_EMPTY(provereset);
 
 BOOST_AUTO_TEST_SUITE(wasm_tests)
 
-#warning Change this back to using TESTER
+// https://github.com/AntelopeIO/leap/issues/259 was created to track this.
+// Remove those comments after the issue is resolved.
+//#warning Change this back to using TESTER
 struct old_wasm_tester : tester {
    old_wasm_tester() : tester{setup_policy::old_wasm_parser} {}
 };
@@ -239,7 +241,7 @@ BOOST_FIXTURE_TEST_CASE( f32_tests, TESTER ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 BOOST_FIXTURE_TEST_CASE( f32_test_bitwise, TESTER ) try {
@@ -262,7 +264,7 @@ BOOST_FIXTURE_TEST_CASE( f32_test_bitwise, TESTER ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 BOOST_FIXTURE_TEST_CASE( f32_test_cmp, TESTER ) try {
@@ -285,7 +287,7 @@ BOOST_FIXTURE_TEST_CASE( f32_test_cmp, TESTER ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 
@@ -310,7 +312,7 @@ BOOST_FIXTURE_TEST_CASE( f64_tests, TESTER ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 BOOST_FIXTURE_TEST_CASE( f64_test_bitwise, TESTER ) try {
@@ -333,7 +335,7 @@ BOOST_FIXTURE_TEST_CASE( f64_test_bitwise, TESTER ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 BOOST_FIXTURE_TEST_CASE( f64_test_cmp, TESTER ) try {
@@ -356,7 +358,7 @@ BOOST_FIXTURE_TEST_CASE( f64_test_cmp, TESTER ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 
@@ -382,7 +384,7 @@ BOOST_FIXTURE_TEST_CASE( f32_f64_conversion_tests, tester ) try {
       push_transaction(trx);
       produce_blocks(1);
       BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-      const auto& receipt = get_transaction_receipt(trx.id());
+      get_transaction_receipt(trx.id());
    }
 } FC_LOG_AND_RETHROW()
 
@@ -413,7 +415,7 @@ BOOST_FIXTURE_TEST_CASE( f32_f64_overflow_tests, tester ) try {
          push_transaction(trx);
          produce_blocks(1);
          BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()));
-         const auto& receipt = get_transaction_receipt(trx.id());
+         get_transaction_receipt(trx.id());
          return true;
       } catch (eosio::chain::wasm_execution_error &) {
          return false;
@@ -1950,7 +1952,9 @@ BOOST_AUTO_TEST_CASE( billed_cpu_test ) try {
    BOOST_CHECK_LT( max_cpu_time_us + 1, cpu_limit ); // max_cpu_time_us+1 has to be less than cpu_limit to actually test max and not account
    // indicate explicit billing at max + 1
    BOOST_CHECK_EXCEPTION( push_trx( ptrx, fc::time_point::maximum(), max_cpu_time_us + 1, true, 0 ), tx_cpu_usage_exceeded,
-                          fc_exception_message_starts_with( "billed") );
+                          [](const tx_cpu_usage_exceeded& e){ fc_exception_message_starts_with starts("billed");
+                                                              fc_exception_message_contains contains("reached on chain max_transaction_cpu_usage");
+                                                              return starts(e) && contains(e); } );
 
    // allow to bill at trx configured max
    ptrx = create_trx(5); // set trx max at 5ms
@@ -1966,7 +1970,9 @@ BOOST_AUTO_TEST_CASE( billed_cpu_test ) try {
    BOOST_CHECK_LT( 5 * 1000 + 1, cpu_limit ); // 5ms has to be less than cpu_limit to actually test trx max and not account
    // indicate explicit billing at max + 1
    BOOST_CHECK_EXCEPTION( push_trx( ptrx, fc::time_point::maximum(), 5 * 1000 + 1, true, 0 ), tx_cpu_usage_exceeded,
-                          fc_exception_message_starts_with("billed") );
+                          [](const tx_cpu_usage_exceeded& e){ fc_exception_message_starts_with starts("billed");
+                                                              fc_exception_message_contains contains("reached trx specified max_cpu_usage_ms");
+                                                              return starts(e) && contains(e); } );
 
    // bill at minimum
    ptrx = create_trx(0);
@@ -2007,7 +2013,9 @@ BOOST_AUTO_TEST_CASE( billed_cpu_test ) try {
    // indicate explicit billing at over our account cpu limit, not allowed
    cpu_limit = mgr.get_account_cpu_limit_ex(acc).first.max;
    BOOST_CHECK_EXCEPTION( push_trx( ptrx, fc::time_point::maximum(), cpu_limit+1, true, 0 ), tx_cpu_usage_exceeded,
-                          fc_exception_message_starts_with("billed") );
+                          [](const tx_cpu_usage_exceeded& e){ fc_exception_message_starts_with starts("billed");
+                                                              fc_exception_message_contains contains("reached account cpu limit");
+                                                              return starts(e) && contains(e); } );
 
    // leeway and subjective billing interaction tests
    auto leeway = fc::microseconds(config::default_subjective_cpu_leeway_us);
@@ -2041,13 +2049,19 @@ BOOST_AUTO_TEST_CASE( billed_cpu_test ) try {
    subjective_cpu_bill_us = cpu_limit;
    billed_cpu_time_us = EOS_PERCENT( combined_cpu_limit - subjective_cpu_bill_us, 90 * config::percent_1 );
    BOOST_CHECK_EXCEPTION(push_trx( ptrx, fc::time_point::maximum(), billed_cpu_time_us, false, subjective_cpu_bill_us ), tx_cpu_usage_exceeded,
-                         fc_exception_message_starts_with("estimated") );
+                         [](const tx_cpu_usage_exceeded& e){ fc_exception_message_starts_with starts("estimated");
+                                                             fc_exception_message_contains contains_reached("reached account cpu limit");
+                                                             fc_exception_message_contains contains_subjective("with a subjective cpu of");
+                                                             return starts(e) && contains_reached(e) && contains_subjective(e); } );
 
    // Disallow transaction with billed cpu greater 90% of (account cpu limit + leeway - subjective bill)
    subjective_cpu_bill_us = 0;
    billed_cpu_time_us = EOS_PERCENT( combined_cpu_limit - subjective_cpu_bill_us, 91 * config::percent_1 );
    BOOST_CHECK_EXCEPTION(push_trx( ptrx, fc::time_point::maximum(), billed_cpu_time_us, false, subjective_cpu_bill_us ), tx_cpu_usage_exceeded,
-                         fc_exception_message_starts_with("estimated") );
+                         [](const tx_cpu_usage_exceeded& e){ fc_exception_message_starts_with starts("estimated");
+                                                             fc_exception_message_contains contains_reached("reached account cpu limit");
+                                                             fc_exception_message_contains contains_subjective("with a subjective cpu of");
+                                                             return starts(e) && contains_reached(e) && !contains_subjective(e); } );
 
    // Test when cpu limit is 0
    chain.push_action( config::system_account_name, "setalimits"_n, config::system_account_name, fc::mutable_variant_object()
@@ -2065,7 +2079,9 @@ BOOST_AUTO_TEST_CASE( billed_cpu_test ) try {
    subjective_cpu_bill_us = 0;
    billed_cpu_time_us = EOS_PERCENT( leeway.count(), 89 *config::percent_1 );
    BOOST_CHECK_EXCEPTION(push_trx( ptrx, fc::time_point::maximum(), billed_cpu_time_us, false, subjective_cpu_bill_us ), tx_cpu_usage_exceeded,
-                         fc_exception_message_starts_with("billed") );
+                         [](const tx_cpu_usage_exceeded& e){ fc_exception_message_starts_with starts("billed");
+                                                             fc_exception_message_contains contains("reached account cpu limit");
+                                                             return starts(e) && contains(e); } );
 
 } FC_LOG_AND_RETHROW()
 

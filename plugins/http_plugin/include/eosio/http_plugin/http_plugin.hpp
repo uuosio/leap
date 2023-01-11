@@ -12,9 +12,9 @@ namespace eosio {
     * @brief A callback function provided to a URL handler to
     * allow it to specify the HTTP response code and body
     *
-    * Arguments: response_code, response_body
+    * Arguments: response_code, deadline, response_body
     */
-   using url_response_callback = std::function<void(int,std::optional<fc::variant>)>;
+   using url_response_callback = std::function<void(int,fc::time_point,std::optional<fc::variant>)>;
 
    /**
     * @brief Callback type for a URL handler
@@ -45,6 +45,8 @@ namespace eosio {
       //If non 0, HTTP will be enabled by default on the given port number. If
       // 0, HTTP will not be enabled by default
       uint16_t default_http_port{0};
+      //If set, a Server header will be added to the HTTP reply with this value
+      string server_header;
    };
 
    /**
@@ -96,7 +98,7 @@ namespace eosio {
         bool is_on_loopback() const;
         bool is_secure() const;
 
-        bool verbose_errors()const;
+        static bool verbose_errors();
 
         struct get_supported_apis_result {
            vector<string> apis;
