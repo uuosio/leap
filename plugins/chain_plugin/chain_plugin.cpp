@@ -2650,7 +2650,8 @@ int chain_rpc_api_proxy::get_info(string& result) {
       read_only::get_info_results results;
       auto& cc = *this->chain();
       std::optional<account_query_db> aqdb;
-      results = read_only(cc, aqdb, fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us), nullptr, nullptr).get_info(params);
+      auto max_time = fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us);
+      results = read_only(cc, aqdb, max_time, max_time, nullptr, nullptr).get_info(params, fc::time_point::maximum());
       result = fc::json::to_string(fc::variant(results), fc::time_point::maximum());
       return 1;
     } CATCH_AND_CALL(next);
@@ -2668,7 +2669,8 @@ int chain_rpc_api_proxy::api_name(string& params, string& result) { \
       auto& cc = *this->chain(); \
       std::optional<account_query_db> aqdb; \
       auto _params = fc::json::from_string(params).as<read_only::api_name ## _params>(); \
-      auto _result = read_only(cc, aqdb, fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us), nullptr, nullptr).api_name(_params); \
+      auto max_time = fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us); \
+      auto _result = read_only(cc, aqdb, max_time, max_time, nullptr, nullptr).api_name(_params, fc::time_point::maximum()); \
       result = fc::json::to_string(fc::variant(_result), fc::time_point::maximum()); \
       return 1;\
    } CATCH_AND_CALL(next); \

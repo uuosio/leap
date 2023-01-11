@@ -19,11 +19,8 @@ namespace fc {
    }
 } // fc
 
-
 FC_REFLECT_ENUM(eosio::chain::db_read_mode, 
-                              (SPECULATIVE)
                               (HEAD)
-                              (READ_ONLY)
                               (IRREVERSIBLE)
 )
 
@@ -78,7 +75,7 @@ FC_REFLECT(eosio::chain::controller::config,
 
 namespace eosio { namespace chain {
 
-std::optional<builtin_protocol_feature> read_builtin_protocol_feature( const fc::path& p  ) {
+std::optional<builtin_protocol_feature> _read_builtin_protocol_feature( const fc::path& p  ) {
    try {
       return fc::json::from_file<builtin_protocol_feature>( p );
    } catch( const fc::exception& e ) {
@@ -91,7 +88,7 @@ std::optional<builtin_protocol_feature> read_builtin_protocol_feature( const fc:
    return {};
 }
 
-protocol_feature_set initialize_protocol_features( const fc::path& p, bool populate_missing_builtins = true ) {
+protocol_feature_set _initialize_protocol_features( const fc::path& p, bool populate_missing_builtins = true ) {
    using boost::filesystem::directory_iterator;
 
    protocol_feature_set pfs;
@@ -159,7 +156,7 @@ protocol_feature_set initialize_protocol_features( const fc::path& p, bool popul
          if( !fc::is_regular_file( file_path ) || file_path.extension().generic_string().compare( ".json" ) != 0 )
             continue;
 
-         auto f = read_builtin_protocol_feature( file_path );
+         auto f = _read_builtin_protocol_feature( file_path );
 
          if( !f ) continue;
 
@@ -285,11 +282,11 @@ chain_manager::chain_manager(string& config, string& _genesis, string& protocol_
 }
 
 void chain_manager::init() {
-    auto pfs = initialize_protocol_features( boost::filesystem::path(protocol_features_dir) );
-    auto chain_id = this->genesis.compute_chain_id();
+   auto pfs = _initialize_protocol_features( boost::filesystem::path(protocol_features_dir) );
+   auto chain_id = this->genesis.compute_chain_id();
 
-    this->c = std::make_shared<controller>(this->cfg, std::move(pfs), chain_id);
-    this->c->add_indices();
+   this->c = std::make_shared<controller>(this->cfg, std::move(pfs), chain_id);
+   this->c->add_indices();
 }
 
 chain_manager::~chain_manager() {

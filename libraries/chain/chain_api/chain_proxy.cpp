@@ -74,9 +74,9 @@ int chain_proxy::start_block(string& _time, uint16_t confirm_block_count, string
         auto time = fc::time_point::from_iso_string(_time);
         if (_new_features.size()) {
             auto new_features = fc::json::from_string(_new_features).as<vector<digest_type>>();
-            c->start_block(block_timestamp_type(time), confirm_block_count, new_features);
+            c->start_block(block_timestamp_type(time), confirm_block_count, new_features, controller::block_status::incomplete);
         } else {
-            c->start_block(block_timestamp_type(time), confirm_block_count);
+            c->start_block(block_timestamp_type(time), confirm_block_count, {}, controller::block_status::incomplete);
         }
         return 1;
     } CATCH_AND_LOG_EXCEPTION();
@@ -94,7 +94,8 @@ int chain_proxy::abort_block() {
 void chain_proxy::finalize_block(string& _priv_keys) {
     try {
         auto priv_keys = fc::json::from_string(_priv_keys).as<vector<string>>();
-        c->finalize_block( [&]( const digest_type d ) {
+        controller::block_report br;
+        c->finalize_block(br, [&]( const digest_type d ) {
             vector<signature_type> sigs;
             for (auto& key: priv_keys) {
                 auto priv_key = private_key_type(key);
@@ -383,8 +384,8 @@ bool chain_proxy::is_building_block() {
     return c->is_building_block();
 }
 
-bool chain_proxy::is_producing_block() {
-    return c->is_producing_block();
+bool chain_proxy::is_speculative_block() {
+    return c->is_speculative_block();
 }
 
 bool chain_proxy::is_ram_billing_in_notify_allowed() {

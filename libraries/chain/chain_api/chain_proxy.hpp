@@ -93,7 +93,7 @@ class chain_proxy {
         virtual bool check_action_list(string& code, string& action);
         virtual bool check_key_list(string& param);
         virtual bool is_building_block();
-        virtual bool is_producing_block();
+        virtual bool is_speculative_block();
         virtual bool is_ram_billing_in_notify_allowed();
         virtual void add_resource_greylist(string& param);
         virtual void remove_resource_greylist(string& param);

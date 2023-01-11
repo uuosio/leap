@@ -19,7 +19,7 @@ int32_t check_permission_authorization( capi_name account,
                                 const char* perms_data,   uint32_t perms_size,
                                 uint64_t delay_us
                               ) {
-    get_vm_api()->check_permission_authorization(account, permission,
+    return get_vm_api()->check_permission_authorization(account, permission,
                                         pubkeys_data, pubkeys_size,
                                         perms_data, perms_size,
                                         delay_us
