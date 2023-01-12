@@ -689,7 +689,7 @@ bool chain_proxy::call_native_contract(uint64_t receiver, uint64_t first_receive
 static std::optional<std::pair<void *, fn_native_apply>> load_native_contract(const string& native_contract_lib) {
     void* handle = dlopen(native_contract_lib.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (!handle) {
-        elog("++++++++${s} load failed!", ("s", native_contract_lib));
+        elog("++++++++loading ${s} error: ${err}!", ("s", native_contract_lib)("err", dlerror()));
         return std::nullopt;
     }
     // typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
