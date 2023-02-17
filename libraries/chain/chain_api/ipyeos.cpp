@@ -28,14 +28,14 @@ extern "C" void ipyeos_init_chain(fn_eos_init init, fn_eos_exec exec) {
 
     void *handle = dlopen(chain_api_lib, RTLD_LAZY | RTLD_GLOBAL);
     if (handle == 0) {
-        printf("loading %s failed! error: %s\n", chain_api_lib, dlerror());
+        printf("Failed to load %s! error: %s\n", chain_api_lib, dlerror());
         exit(-1);
         return;
     }
 
     fn_init_ipyeos_proxy init_ipyeos_proxy = (fn_init_ipyeos_proxy)dlsym(handle, "init_ipyeos_proxy");
     if (!init_ipyeos_proxy) {
-        printf("loading init_ipyeos_proxy failed! error: %s\n", dlerror());
+        printf("Failed to load init_ipyeos_proxy! error: %s\n", dlerror());
         exit(-1);
         return;
     }
@@ -49,14 +49,14 @@ extern "C" void ipyeos_init_chain(fn_eos_init init, fn_eos_exec exec) {
 
     handle = dlopen(vm_api_lib, RTLD_LAZY | RTLD_GLOBAL);
     if (handle == 0) {
-        printf("loading %s failed! error: %s\n", vm_api_lib, dlerror());
+        printf("Failed to load %s! error: %s\n", vm_api_lib, dlerror());
         exit(-1);
         return;
     }
 
     fn_init_vm_api init_vm_api = (fn_init_vm_api)dlsym(handle, "init_vm_api");
     if (!init_vm_api) {
-        printf("loading init_vm_api failed! error: %s\n", dlerror());
+        printf("Failed to load init_vm_api! error: %s\n", dlerror());
         exit(-1);
         return;
     }

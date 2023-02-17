@@ -19,7 +19,7 @@ extern "C" int start_python(int argc, char **argv) {
 
     void *handle = dlopen(python_shared_lib_path, RTLD_LAZY | RTLD_GLOBAL);
     if (handle == 0) {
-        printf("loading %s failed!\n", python_shared_lib_path);
+        printf("Failed to load %s!\n", python_shared_lib_path);
         return -1;
     }
 
