@@ -649,6 +649,7 @@ bool chain_proxy::pack_action_args(string& account, string& action, string& _arg
 
 string chain_proxy::unpack_action_args(string& name, string& action, string& _binargs) {
     try {
+        load_abi(account);
         auto& serializer = abi_cache[name];
         if (!serializer) {
             EOS_ASSERT(false, action_validate_exception, "ABI for {account} not found!", ("account", name));
