@@ -16,8 +16,8 @@ from TestHarness.testUtils import BlockLogAction
 ###############################################################
 # nodeos_snapshot_diff_test
 #
-#  Test configures a producing node and 2 non-producing nodes with the
-#  txn_test_gen_plugin.  Each non-producing node starts generating transactions and sending them
+#  Test configures a producing node and 2 non-producing nodes.
+#  Configures trx_generator(s) and starts generating transactions and sending them
 #  to the producing node.
 #  - Create a snapshot from producing node
 #  - Convert snapshot to JSON
@@ -32,14 +32,16 @@ Print=Utils.Print
 errorExit=Utils.errorExit
 
 appArgs=AppArgs()
-args = TestHelper.parse_args({"--dump-error-details","--keep-logs","-v","--leave-running","--clean-run","--wallet-port"},
+args = TestHelper.parse_args({"--dump-error-details","--keep-logs","-v","--leave-running","--clean-run","--wallet-port","--unshared"},
                              applicationSpecificArgs=appArgs)
 
 relaunchTimeout = 30
 Utils.Debug=args.v
 pnodes=1
-startedNonProdNodes = 2
-cluster=Cluster(walletd=True)
+testAccounts = 2
+trxGeneratorCnt=2
+startedNonProdNodes = 3
+cluster=Cluster(walletd=True,unshared=args.unshared)
 dumpErrorDetails=args.dump_error_details
 keepLogs=args.keep_logs
 dontKill=args.leave_running
@@ -56,10 +58,16 @@ killWallet=not dontKill
 WalletdName=Utils.EosWalletName
 ClientName="cleos"
 
+trxGenLauncher=None
+
+snapshotScheduleDB = "snapshot-schedule.json"
+
 def getLatestSnapshot(nodeId):
     snapshotDir = os.path.join(Utils.getNodeDataDir(nodeId), "snapshots")
     snapshotDirContents = os.listdir(snapshotDir)
     assert len(snapshotDirContents) > 0
+    # disregard snapshot schedule config in same folder
+    if snapshotScheduleDB in snapshotDirContents: snapshotDirContents.remove(snapshotScheduleDB)
     snapshotDirContents.sort()
     return os.path.join(snapshotDir, snapshotDirContents[-1])
 
@@ -75,24 +83,26 @@ try:
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
     specificExtraNodeosArgs={}
-    txnGenNodeNum=0 #pnodes  # next node after producer nodes
-    for nodeNum in range(txnGenNodeNum, txnGenNodeNum+startedNonProdNodes):
-        specificExtraNodeosArgs[nodeNum]="--plugin eosio::txn_test_gen_plugin --txn-test-gen-account-prefix txntestacct"
     Print("Stand up cluster")
     if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=pnodes, totalNodes=totalNodes, totalProducers=pnodes*prodCount,
-                      useBiosBootFile=False, specificExtraNodeosArgs=specificExtraNodeosArgs, loadSystemContract=False) is False:
+                      specificExtraNodeosArgs=specificExtraNodeosArgs, loadSystemContract=True, maximumP2pPerHost=totalNodes+trxGeneratorCnt) is False:
         Utils.errorExit("Failed to stand up eos cluster.")
 
+    Print("Create test wallet")
+    wallet = walletMgr.create('txntestwallet')
+    cluster.populateWallet(2, wallet)
+
+    Print("Create test accounts for transactions.")
+    cluster.createAccounts(cluster.eosioAccount, stakedDeposit=0, validationNodeIndex=0)
+
+    account1Name = cluster.accounts[0].name
+    account2Name = cluster.accounts[1].name
+
+    account1PrivKey = cluster.accounts[0].activePrivateKey
+    account2PrivKey = cluster.accounts[1].activePrivateKey
+
     Print("Validating system accounts after bootstrap")
-    cluster.validateAccounts(None)
-
-    Print("Create txn generate nodes")
-    txnGenNodes=[]
-    for nodeNum in range(txnGenNodeNum, txnGenNodeNum+startedNonProdNodes):
-        txnGenNodes.append(cluster.getNode(nodeNum))
-
-    Print("Create accounts for generated txns")
-    txnGenNodes[0].txnGenCreateTestAccounts(cluster.eosioAccount.name, cluster.eosioAccount.activePrivateKey)
+    cluster.validateAccounts([cluster.accounts[0], cluster.accounts[1]])
 
     def waitForBlock(node, blockNum, blockType=BlockType.head, timeout=None, reportInterval=20):
         if not node.waitForBlock(blockNum, timeout=timeout, blockType=blockType, reportInterval=reportInterval):
@@ -101,29 +111,34 @@ try:
             libBlockNum=info["last_irreversible_block_num"]
             Utils.errorExit("Failed to get to %s block number %d. Last had head block number %d and lib %d" % (blockType, blockNum, headBlockNum, libBlockNum))
 
-    node0=cluster.getNode(0)
 
     snapshotNodeId = 0
+    node0=cluster.getNode(snapshotNodeId)
     irrNodeId = snapshotNodeId+1
+    progNodeId = irrNodeId+1
 
     nodeSnap=cluster.getNode(snapshotNodeId)
     nodeIrr=cluster.getNode(irrNodeId)
+    nodeProg=cluster.getNode(progNodeId)
 
     Print("Wait for account creation to be irreversible")
     blockNum=node0.getBlockNum(BlockType.head)
     waitForBlock(node0, blockNum, blockType=BlockType.lib)
 
-    Print("Startup txn generation")
-    period=30
-    transPerPeriod=20
-    for genNum in range(0, len(txnGenNodes)):
-        salt="%d" % genNum
-        txnGenNodes[genNum].txnGenStart(salt, period, transPerPeriod)
+    Print("Configure and launch txn generators")
+    
+    targetTpsPerGenerator = 10
+    testTrxGenDurationSec=60*30
+    cluster.launchTrxGenerators(contractOwnerAcctName=cluster.eosioAccount.name, acctNamesList=[account1Name, account2Name],
+                                acctPrivKeysList=[account1PrivKey,account2PrivKey], nodeId=snapshotNodeId, tpsPerGenerator=targetTpsPerGenerator,
+                                numGenerators=trxGeneratorCnt, durationSec=testTrxGenDurationSec, waitToComplete=False)
+
+    status = cluster.waitForTrxGeneratorsSpinup(nodeId=snapshotNodeId, numGenerators=trxGeneratorCnt)
+    assert status is not None, "ERROR: Failed to spinup Transaction Generators"
 
     blockNum=node0.getBlockNum(BlockType.head)
     timePerBlock=500
-    blocksPerPeriod=period/timePerBlock
-    transactionsPerBlock=transPerPeriod/blocksPerPeriod
+    transactionsPerBlock=targetTpsPerGenerator*trxGeneratorCnt*timePerBlock/1000
     steadyStateWait=30
     startBlockNum=blockNum+steadyStateWait
     numBlocks=30
@@ -143,8 +158,8 @@ try:
     minReqPctLeeway=0.60
     minRequiredTransactions=minReqPctLeeway*transactionsPerBlock
     assert steadyStateAvg>=minRequiredTransactions, "Expected to at least receive %s transactions per block, but only getting %s" % (minRequiredTransactions, steadyStateAvg)
-
-    Print("Create snapshot")
+    
+    Print("Create snapshot (node 0)")
     ret = nodeSnap.createSnapshot()
     assert ret is not None, "Snapshot creation failed"
     ret_head_block_num = ret["payload"]["head_block_num"]
@@ -161,9 +176,32 @@ try:
     Utils.processLeapUtilCmd("snapshot to-json --input-file {}".format(snapshotFile), "snapshot to-json", silentErrors=False)
     snapshotFile = snapshotFile + ".json"
 
+    Print("Trim programmable blocklog to snapshot head block num and relaunch programmable node")
+    nodeProg.kill(signal.SIGTERM)
+    output=cluster.getBlockLog(progNodeId, blockLogAction=BlockLogAction.trim, first=0, last=ret_head_block_num, throwException=True)
+    removeState(progNodeId)
+    Utils.rmFromFile(Utils.getNodeConfigDir(progNodeId, "config.ini"), "p2p-peer-address")
+    isRelaunchSuccess = nodeProg.relaunch(chainArg="--replay", addSwapFlags={}, timeout=relaunchTimeout, cachePopen=True)
+    assert isRelaunchSuccess, "Failed to relaunch programmable node"
+
+    Print("Schedule snapshot (node 2)")
+    ret = nodeProg.scheduleSnapshotAt(ret_head_block_num)
+    assert ret is not None, "Snapshot scheduling failed"
+
+    Print("Wait for programmable node lib to advance")
+    waitForBlock(nodeProg, ret_head_block_num+1, blockType=BlockType.lib)
+
+    Print("Kill programmable node")
+    nodeProg.kill(signal.SIGTERM)
+
+    Print("Convert snapshot to JSON")
+    progSnapshotFile = getLatestSnapshot(progNodeId)
+    Utils.processLeapUtilCmd("snapshot to-json --input-file {}".format(progSnapshotFile), "snapshot to-json", silentErrors=False)
+    progSnapshotFile = progSnapshotFile + ".json"
+
     Print("Trim irreversible blocklog to snapshot head block num")
     nodeIrr.kill(signal.SIGTERM)
-    output=cluster.getBlockLog(irrNodeId, blockLogAction=BlockLogAction.trim, last=ret_head_block_num, throwException=True)
+    output=cluster.getBlockLog(irrNodeId, blockLogAction=BlockLogAction.trim, first=0, last=ret_head_block_num, throwException=True)
 
     Print("Relaunch irreversible node in irreversible mode")
     removeState(irrNodeId)
@@ -188,6 +226,7 @@ try:
     irrSnapshotFile = irrSnapshotFile + ".json"
 
     assert Utils.compareFiles(snapshotFile, irrSnapshotFile), f"Snapshot files differ {snapshotFile} != {irrSnapshotFile}"
+    assert Utils.compareFiles(progSnapshotFile, irrSnapshotFile), f"Snapshot files differ {progSnapshotFile} != {irrSnapshotFile}"
 
     testSuccessful=True
 

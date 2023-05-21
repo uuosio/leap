@@ -21,15 +21,14 @@ relaunchTimeout = 10
 numOfProducers = 1
 totalNodes = 4
 
-termAtFutureBlockNum = 30
-
 # Parse command line arguments
 args = TestHelper.parse_args({
     "-v",
     "--clean-run",
     "--dump-error-details",
     "--leave-running",
-    "--keep-logs"
+    "--keep-logs",
+    "--unshared"
 })
 
 Utils.Debug = args.v
@@ -43,7 +42,7 @@ keepLogs = args.keep_logs
 # Wrapper function to execute test
 # This wrapper function will resurrect the node to be tested, and shut
 # it down by the end of the test
-def executeTest(cluster, producerNode, testNodeId, testNodeArgs, resultMsgs):
+def executeTest(cluster, testNodeId, testNodeArgs, resultMsgs):
     testNode = None
     testResult = False
     resultDesc = "!!!BUG IS CONFIRMED ON TEST CASE #{} ({})".format(
@@ -59,17 +58,12 @@ def executeTest(cluster, producerNode, testNodeId, testNodeArgs, resultMsgs):
             )
         )
 
-        # Get current information from the producer.
-        producerNode.waitForHeadToAdvance()
-
-        # Launch the node with the terminate-at-block option specified
-        # in testNodeArgs. The option for each node has already
-        # been set via specificExtraNodeosArg in the cluster launch.
-        cluster.launchUnstarted(cachePopen=True)
         testNode = cluster.getNode(testNodeId)
+        assert not testNode.verifyAlive() # resets pid so reluanch works
+        testNode.relaunch(addSwapFlags={"--terminate-at-block": "9999999"}, cachePopen=True)
 
         # Wait for node to start up.
-        time.sleep(10)
+        time.sleep(3)
 
         # Check the node stops at the correct block.
         checkStatus(testNode, testNodeArgs)
@@ -103,8 +97,7 @@ def checkStatus(testNode, testNodeArgs):
     """Test --terminate-at-block stops at the correct block."""
     Print(" ".join([
         "The test node has begun receiving from the producing node and",
-        "is expected to stop at or little bigger than the block number",
-        "specified here: ",
+        "is expected to stop at the block number specified here: ",
         testNodeArgs
     ]))
 
@@ -117,6 +110,12 @@ def checkStatus(testNode, testNodeArgs):
         checkIrreversible(head, lib)
     else:
         checkHeadOrSpeculative(head, lib)
+
+    # Check for the terminate at block message.
+    match = re.search(r"--terminate-at-block (\d+)", testNodeArgs)
+    termAtBlock = int(match.group(1))
+
+    assert head == termAtBlock, f"head {head} termAtBlock {termAtBlock}"
 
 
 def checkReplay(testNode, testNodeArgs):
@@ -131,20 +130,18 @@ def checkReplay(testNode, testNodeArgs):
         testNodeArgs
     ]))
 
-    testNode.relaunch(chainArg="--replay-blockchain", cachePopen=True)
+    assert not testNode.verifyAlive()
+    testNode.relaunch(chainArg="--replay-blockchain", addSwapFlags={"--terminate-at-block": "9999999"}, cachePopen=True)
 
     # Wait for node to finish up.
-    time.sleep(10)
+    time.sleep(3)
 
     # Check for the terminate at block message.
-    match = re.search(r"--terminate-at-block=(\d+)", testNodeArgs)
+    match = re.search(r"--terminate-at-block (\d+)", testNodeArgs)
     termAtBlock = int(match.group(1))
 
-    termMsg = "Reached configured maximum block {}; terminating".format(
-        termAtBlock
-    )
-
-    assert checkLog(testNode.popenProc.errfile.name, termMsg)
+    head, lib = getBlockNumInfo(testNode)
+    assert head == termAtBlock, f"head {head} termAtBlock {termAtBlock}"
 
 
 def getBlockNumInfo(testNode):
@@ -155,37 +152,18 @@ def getBlockNumInfo(testNode):
         info = testNode.getInfo()
 
         if not info:
-            break
+            continue
 
         try:
             head = info["head_block_num"]
             lib = info["last_irreversible_block_num"]
+            break
 
         except KeyError:
             pass
 
     assert head and lib, "Could not retrieve head and lib with getInfo()"
     return head, lib
-
-
-def checkLog(log, message, sleepDuration=1, maxAttempt=10):
-    attemptCnt = 0
-    found = False
-
-    while not found and attemptCnt < maxAttempt:
-        try:
-            with open(log, "r") as f:
-                found = message in f.read()
-
-        except OSError:
-            pass
-
-        if not found:
-            time.sleep(sleepDuration)
-
-        attemptCnt = attemptCnt + 1
-
-    return found
 
 
 def checkIrreversible(head, lib):
@@ -202,7 +180,7 @@ def checkHeadOrSpeculative(head, lib):
 
 # Setup cluster and it's wallet manager
 walletMgr = WalletMgr(True)
-cluster = Cluster(walletd=True)
+cluster = Cluster(walletd=True,unshared=args.unshared)
 cluster.setWalletMgr(walletMgr)
 
 # List to contain the test result message
@@ -211,9 +189,9 @@ testSuccessful = False
 try:
     specificNodeosArgs = {
         0 : "--enable-stale-production",
-        1 : "--read-mode irreversible --terminate-at-block=250",
-        2 : "--read-mode head --terminate-at-block=550",
-        3 : "--read-mode head --terminate-at-block=850",
+        1 : "--read-mode irreversible --terminate-at-block 75",
+        2 : "--read-mode head --terminate-at-block 100",
+        3 : "--read-mode speculative --terminate-at-block 125"
     }
 
     # Kill any existing instances and launch cluster
@@ -224,15 +202,18 @@ try:
         prodCount=numOfProducers,
         totalProducers=numOfProducers,
         totalNodes=totalNodes,
-        unstartedNodes=totalNodes - numOfProducers,
         pnodes=1,
-        useBiosBootFile=False,
         topo="mesh",
         specificExtraNodeosArgs=specificNodeosArgs,
     )
 
     producingNodeId = 0
     producingNode = cluster.getNode(producingNodeId)
+
+    # wait for all to terminate, needs to be larger than largest terminate-at-block
+    producingNode.waitForBlock( 150, timeout=150 )
+    cluster.biosNode.kill(signal.SIGTERM)
+    producingNode.kill(signal.SIGTERM)
 
     # Start executing test cases here
     Utils.Print("Script Begin .............................")
@@ -244,7 +225,6 @@ try:
 
         success = executeTest(
             cluster,
-            producingNode,
             nodeId,
             nodeArgs,
             testResultMsgs

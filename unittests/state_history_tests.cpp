@@ -1,6 +1,8 @@
+#include <eosio/state_history/serialization.hpp>
 #include <eosio/chain/authorization_manager.hpp>
 #include <boost/test/unit_test.hpp>
 #include <contracts.hpp>
+#include <test_contracts.hpp>
 #include <eosio/state_history/create_deltas.hpp>
 #include <eosio/state_history/log.hpp>
 #include <eosio/state_history/trace_converter.hpp>
@@ -9,10 +11,11 @@
 #include <eosio/chain/global_property_object.hpp>
 
 #include "test_cfd_transaction.hpp"
-#include <boost/filesystem.hpp>
 
 #include <eosio/stream.hpp>
 #include <eosio/ship_protocol.hpp>
+#include <boost/iostreams/device/back_inserter.hpp>
+#include <boost/iostreams/copy.hpp>
 
 using namespace eosio::chain;
 using namespace eosio::testing;
@@ -22,6 +25,32 @@ extern const char* const state_history_plugin_abi;
 
 bool operator==(const eosio::checksum256& lhs, const transaction_id_type& rhs) {
    return memcmp(lhs.extract_as_byte_array().data(), rhs.data(), rhs.data_size()) == 0;
+}
+
+namespace eosio::state_history {
+
+template <typename ST, typename T>
+datastream<ST>& operator>>(datastream<ST>& ds, eosio::state_history::big_vector_wrapper<T>& obj) {
+   fc::unsigned_int sz;
+   fc::raw::unpack(ds, sz);
+   obj.obj.resize(sz);
+   for (auto& x : obj.obj)
+      fc::raw::unpack(ds, x);
+   return ds;
+}
+
+std::vector<table_delta> create_deltas(const chainbase::database& db, bool full_snapshot) {
+   namespace bio = boost::iostreams;
+   std::vector<char> buf;
+   bio::filtering_ostreambuf obuf;
+   obuf.push(bio::back_inserter(buf));
+   pack_deltas(obuf, db, full_snapshot);
+
+   fc::datastream<const char*> is{buf.data(), buf.size()};
+   std::vector<table_delta> result;
+   fc::raw::unpack(is, result);
+   return result;
+}
 }
 
 BOOST_AUTO_TEST_SUITE(test_state_history)
@@ -298,8 +327,8 @@ BOOST_AUTO_TEST_CASE(test_deltas_contract) {
 
    chain.create_account("tester"_n);
 
-   chain.set_code("tester"_n, contracts::get_table_test_wasm());
-   chain.set_abi("tester"_n, contracts::get_table_test_abi().data());
+   chain.set_code("tester"_n, test_contracts::get_table_test_wasm());
+   chain.set_abi("tester"_n, test_contracts::get_table_test_abi().data());
 
    chain.produce_block();
 
@@ -348,12 +377,12 @@ BOOST_AUTO_TEST_CASE(test_deltas_resources_history) {
    table_deltas_tester chain;
    chain.produce_block();
 
-   chain.create_accounts({ "eosio.token"_n, "eosio.ram"_n, "eosio.ramfee"_n, "eosio.stake"_n});
+   chain.create_accounts({ "eosio.token"_n, "eosio.ram"_n, "eosio.ramfee"_n, "eosio.stake"_n, "eosio.rex"_n});
 
    chain.produce_blocks( 100 );
 
-   chain.set_code( "eosio.token"_n, contracts::eosio_token_wasm() );
-   chain.set_abi( "eosio.token"_n, contracts::eosio_token_abi().data() );
+   chain.set_code( "eosio.token"_n, test_contracts::eosio_token_wasm() );
+   chain.set_abi( "eosio.token"_n, test_contracts::eosio_token_abi().data() );
 
    chain.produce_block();
 
@@ -370,13 +399,13 @@ BOOST_AUTO_TEST_CASE(test_deltas_resources_history) {
 
    chain.produce_blocks(10);
 
-   chain.set_code( config::system_account_name, contracts::eosio_system_wasm() );
-   chain.set_abi( config::system_account_name, contracts::eosio_system_abi().data() );
+   chain.set_code( config::system_account_name, test_contracts::eosio_system_wasm() );
+   chain.set_abi( config::system_account_name, test_contracts::eosio_system_abi().data() );
 
    chain.push_action(config::system_account_name, "init"_n, config::system_account_name,
                         mutable_variant_object()
                         ("version", 0)
-                        ("core", CORE_SYM_STR));
+                        ("core", symbol(CORE_SYMBOL).to_string()));
 
    signed_transaction trx;
    chain.set_transaction_headers(trx);
@@ -458,8 +487,8 @@ BOOST_AUTO_TEST_CASE(test_deltas_resources_history) {
       chain.produce_block();
       chain.create_account("tester"_n);
 
-      chain.set_code("tester"_n, contracts::get_table_test_wasm());
-      chain.set_abi("tester"_n, contracts::get_table_test_abi().data());
+      chain.set_code("tester"_n, test_contracts::get_table_test_wasm());
+      chain.set_abi("tester"_n, test_contracts::get_table_test_abi().data());
 
       chain.produce_blocks(2);
 
@@ -544,8 +573,7 @@ BOOST_AUTO_TEST_CASE(test_deltas_resources_history) {
    BOOST_AUTO_TEST_CASE(test_trace_log_with_transaction_extensions) {
       tester c(setup_policy::full);
 
-      scoped_temp_path state_history_dir;
-      fc::create_directories(state_history_dir.path);
+      fc::temp_directory state_history_dir;
       eosio::state_history::trace_converter log;
 
       c.control->applied_transaction.connect(
@@ -554,8 +582,8 @@ BOOST_AUTO_TEST_CASE(test_deltas_resources_history) {
             });
 
       c.create_accounts({"alice"_n, "test"_n});
-      c.set_code("test"_n, contracts::deferred_test_wasm());
-      c.set_abi("test"_n, contracts::deferred_test_abi().data());
+      c.set_code("test"_n, test_contracts::deferred_test_wasm());
+      c.set_abi("test"_n, test_contracts::deferred_test_abi().data());
       c.produce_block();
 
       c.push_action("test"_n, "defercall"_n, "alice"_n,
@@ -571,5 +599,243 @@ BOOST_AUTO_TEST_CASE(test_deltas_resources_history) {
       BOOST_CHECK(std::any_of(partial_txns.begin(), partial_txns.end(), contains_transaction_extensions));
    }
 
+
+struct state_history_tester_logs  {
+   state_history_tester_logs(const std::filesystem::path& dir, const eosio::state_history_log_config& config)
+      : traces_log("trace_history",dir, config) , chain_state_log("chain_state_history", dir, config) {}
+
+   eosio::state_history_log traces_log;
+   eosio::state_history_log chain_state_log;
+   eosio::state_history::trace_converter trace_converter;
+};
+
+struct state_history_tester : state_history_tester_logs, tester {
+
+
+   state_history_tester(const std::filesystem::path& dir, const eosio::state_history_log_config& config)
+   : state_history_tester_logs(dir, config), tester ([this](eosio::chain::controller& control) {
+      control.applied_transaction.connect(
+       [&](std::tuple<const transaction_trace_ptr&, const packed_transaction_ptr&> t) {
+          trace_converter.add_transaction(std::get<0>(t), std::get<1>(t));
+       });
+
+      control.accepted_block.connect([&](const block_state_ptr& block_state) {
+         eosio::state_history_log_header header{.magic        = eosio::ship_magic(eosio::ship_current_version, 0),
+                                      .block_id     = block_state->id,
+                                      .payload_size = 0};
+
+         traces_log.pack_and_write_entry(header, block_state->block->previous, [this, &control, &block_state](auto&& buf) {
+            trace_converter.pack(buf, control.db(), false, block_state);
+         });
+
+         chain_state_log.pack_and_write_entry(header, block_state->header.previous, [&control](auto&& buf) {
+            eosio::state_history::pack_deltas(buf, control.db(), true);
+         });
+      });
+      control.block_start.connect([this](uint32_t block_num) {
+         trace_converter.cached_traces.clear();
+         trace_converter.onblock_trace.reset();
+      });
+   }) {}
+};
+
+static std::vector<char> get_decompressed_entry(eosio::state_history_log& log, block_num_type block_num) {
+   auto result = log.create_locked_decompress_stream();
+   log.get_unpacked_entry(block_num, result);
+   namespace bio = boost::iostreams;
+   return std::visit(eosio::chain::overloaded{ [](std::vector<char>& bytes) {
+                                                 return bytes;
+                                              },
+                                               [](std::unique_ptr<bio::filtering_istreambuf>& strm) {
+                                                  std::vector<char> bytes;
+                                                  bio::copy(*strm, bio::back_inserter(bytes));
+                                                  return bytes;
+                                               } },
+                     result.buf);
+}
+
+static std::vector<eosio::ship_protocol::transaction_trace> get_traces(eosio::state_history_log& log,
+                                                                       block_num_type            block_num) {
+   auto                                                          entry = get_decompressed_entry(log, block_num);
+   std::vector<eosio::ship_protocol::transaction_trace>          traces;
+
+   if (entry.size()) {
+      eosio::input_stream traces_bin{ entry.data(), entry.data() + entry.size() };
+      BOOST_REQUIRE_NO_THROW(from_bin(traces, traces_bin));
+   }
+   return traces;
+}
+
+BOOST_AUTO_TEST_CASE(test_splitted_log) {
+
+   fc::temp_directory state_history_dir;
+
+   eosio::state_history::partition_config config{
+      .retained_dir = "retained",
+      .archive_dir = "archive",
+      .stride  = 20,
+      .max_retained_files = 5
+   };
+
+   state_history_tester chain(state_history_dir.path(), config);
+   chain.produce_blocks(50);
+
+   deploy_test_api(chain);
+   auto cfd_trace = push_test_cfd_transaction(chain);
+
+   chain.produce_blocks(100);
+
+   auto log_dir = state_history_dir.path();
+   auto archive_dir  = log_dir / "archive";
+   auto retained_dir = log_dir / "retained";
+
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "trace_history-2-20.log" ));
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "trace_history-2-20.index" ));
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "trace_history-21-40.log" ));
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "trace_history-21-40.index" ));
+
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "chain_state_history-2-20.log" ));
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "chain_state_history-2-20.index" ));
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "chain_state_history-21-40.log" ));
+   BOOST_CHECK(std::filesystem::exists( archive_dir / "chain_state_history-21-40.index" ));
+
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-41-60.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-41-60.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-61-80.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-61-80.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-81-100.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-81-100.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-101-120.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-101-120.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-121-140.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "trace_history-121-140.index" ));
+
+   BOOST_CHECK_EQUAL(chain.traces_log.block_range().first, 41);
+
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-41-60.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-41-60.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-61-80.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-61-80.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-81-100.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-81-100.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-101-120.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-101-120.index" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-121-140.log" ));
+   BOOST_CHECK(std::filesystem::exists( retained_dir / "chain_state_history-121-140.index" ));
+
+   BOOST_CHECK_EQUAL(chain.chain_state_log.block_range().first, 41);
+
+   BOOST_CHECK(get_traces(chain.traces_log, 10).empty());
+   BOOST_CHECK(get_traces(chain.traces_log, 100).size());
+   BOOST_CHECK(get_traces(chain.traces_log, 140).size());
+   BOOST_CHECK(get_traces(chain.traces_log, 150).size());
+   BOOST_CHECK(get_traces(chain.traces_log, 160).empty());
+
+   BOOST_CHECK(get_decompressed_entry(chain.chain_state_log, 10).empty());
+   BOOST_CHECK(get_decompressed_entry(chain.chain_state_log, 100).size());
+   BOOST_CHECK(get_decompressed_entry(chain.chain_state_log, 140).size());
+   BOOST_CHECK(get_decompressed_entry(chain.chain_state_log, 150).size());
+   BOOST_CHECK(get_decompressed_entry(chain.chain_state_log, 160).empty());
+}
+
+void push_blocks( tester& from, tester& to ) {
+   while( to.control->fork_db_head_block_num()
+            < from.control->fork_db_head_block_num() )
+   {
+      auto fb = from.control->fetch_block_by_number( to.control->fork_db_head_block_num()+1 );
+      to.push_block( fb );
+   }
+}
+
+bool test_fork(uint32_t stride, uint32_t max_retained_files) {
+
+   fc::temp_directory state_history_dir;
+
+   eosio::state_history::partition_config config{
+      .retained_dir = "retained",
+      .archive_dir = "archive",
+      .stride  = stride,
+      .max_retained_files = max_retained_files
+   };
+
+   state_history_tester chain1(state_history_dir.path(), config);
+   chain1.produce_blocks(2);
+
+   chain1.create_accounts( {"dan"_n,"sam"_n,"pam"_n} );
+   chain1.produce_block();
+   chain1.set_producers( {"dan"_n,"sam"_n,"pam"_n} );
+   chain1.produce_blocks(30);
+
+   tester chain2(setup_policy::none);
+   push_blocks(chain1, chain2);
+
+   auto fork_block_num = chain1.control->head_block_num();
+
+   chain1.produce_blocks(12);
+   auto create_account_traces = chain2.create_accounts( {"adam"_n} );
+   auto create_account_trace_id = create_account_traces[0]->id;
+
+   auto b = chain2.produce_block();
+   chain2.produce_blocks(11+12);
+
+   for( uint32_t start = fork_block_num + 1, end = chain2.control->head_block_num(); start <= end; ++start ) {
+      auto fb = chain2.control->fetch_block_by_number( start );
+      chain1.push_block( fb );
+   }
+   auto traces = get_traces(chain1.traces_log, b->block_num());
+
+   bool trace_found = std::find_if(traces.begin(), traces.end(), [create_account_trace_id](const auto& v) {
+                         return std::get<eosio::ship_protocol::transaction_trace_v0>(v).id == create_account_trace_id;
+                      }) != traces.end();
+
+   return trace_found;
+}
+
+BOOST_AUTO_TEST_CASE(test_fork_no_stride) {
+   // In this case, the chain fork would NOT trunk the trace log across the stride boundary.
+   BOOST_CHECK(test_fork(UINT32_MAX, 10));
+}
+BOOST_AUTO_TEST_CASE(test_fork_with_stride1) {
+   // In this case, the chain fork would trunk the trace log across the stride boundary.
+   // However, there are still some traces remains after the truncation.
+   BOOST_CHECK(test_fork(10, 10));
+}
+BOOST_AUTO_TEST_CASE(test_fork_with_stride2) {
+   // In this case, the chain fork would trunk the trace log across the stride boundary.
+   // However, no existing trace remain after the truncation. Because we only keep a very
+   // short history, the create_account_trace is not available to be found. We just need
+   // to make sure no exception is throw.
+   BOOST_CHECK_NO_THROW(test_fork(5, 1));
+}
+
+BOOST_AUTO_TEST_CASE(test_corrupted_log_recovery) {
+
+   fc::temp_directory state_history_dir;
+
+   eosio::state_history::partition_config config{
+      .archive_dir = "archive",
+      .stride  = 100,
+      .max_retained_files = 5
+   };
+
+   state_history_tester chain(state_history_dir.path(), config);
+   chain.produce_blocks(50);
+   chain.close();
+
+   // write a few random bytes to block log indicating the last block entry is incomplete
+   fc::cfile logfile;
+   logfile.set_file_path(state_history_dir.path() / "trace_history.log");
+   logfile.open("ab");
+   const char random_data[] = "12345678901231876983271649837";
+   logfile.write(random_data, sizeof(random_data));
+
+   std::filesystem::remove_all(chain.get_config().blocks_dir/"reversible");
+
+   state_history_tester new_chain(state_history_dir.path(), config);
+   new_chain.produce_blocks(50);
+
+   BOOST_CHECK(get_traces(new_chain.traces_log, 10).size());
+   BOOST_CHECK(get_decompressed_entry(new_chain.chain_state_log,10).size());
+}
 
 BOOST_AUTO_TEST_SUITE_END()

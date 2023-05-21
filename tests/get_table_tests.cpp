@@ -10,10 +10,9 @@
 #include <eosio/chain_plugin/chain_plugin.hpp>
 
 #include <contracts.hpp>
+#include <test_contracts.hpp>
 
 #include <fc/io/fstream.hpp>
-
-#include <Runtime/Runtime.h>
 
 #include <fc/variant_object.hpp>
 #include <fc/io/json.hpp>
@@ -21,21 +20,23 @@
 #include <array>
 #include <utility>
 
-#ifdef NON_VALIDATING_TEST
-#define TESTER tester
-#else
-#define TESTER validating_tester
-#endif
-
 using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::testing;
 using namespace fc;
 
+static auto get_table_rows_full = [](chain_apis::read_only& plugin,
+                                     chain_apis::read_only::get_table_rows_params& params,
+                                     const fc::time_point& deadline) -> chain_apis::read_only::get_table_rows_result {   
+   auto res_nm_v =  plugin.get_table_rows(params, deadline)();
+   BOOST_REQUIRE(!std::holds_alternative<fc::exception_ptr>(res_nm_v));
+   return std::get<chain_apis::read_only::get_table_rows_result>(std::move(res_nm_v));
+};
+
 BOOST_AUTO_TEST_SUITE(get_table_tests)
 
 transaction_trace_ptr
-issue_tokens( TESTER& t, account_name issuer, account_name to, const asset& amount,
+issue_tokens( validating_tester& t, account_name issuer, account_name to, const asset& amount,
               std::string memo = "", account_name token_contract = "eosio.token"_n )
 {
    signed_transaction trx;
@@ -62,7 +63,7 @@ issue_tokens( TESTER& t, account_name issuer, account_name to, const asset& amou
    return t.push_transaction( trx );
 }
 
-BOOST_FIXTURE_TEST_CASE( get_scope_test, TESTER ) try {
+BOOST_FIXTURE_TEST_CASE( get_scope_test, validating_tester ) try {
    produce_blocks(2);
 
    create_accounts({ "eosio.token"_n, "eosio.ram"_n, "eosio.ramfee"_n, "eosio.stake"_n,
@@ -72,8 +73,8 @@ BOOST_FIXTURE_TEST_CASE( get_scope_test, TESTER ) try {
    create_accounts(accs);
    produce_block();
 
-   set_code( "eosio.token"_n, contracts::eosio_token_wasm() );
-   set_abi( "eosio.token"_n, contracts::eosio_token_abi().data() );
+   set_code( "eosio.token"_n, test_contracts::eosio_token_wasm() );
+   set_abi( "eosio.token"_n, test_contracts::eosio_token_abi().data() );
    produce_blocks(1);
 
    // create currency
@@ -89,7 +90,7 @@ BOOST_FIXTURE_TEST_CASE( get_scope_test, TESTER ) try {
    produce_blocks(1);
 
    // iterate over scope
-   eosio::chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {}, {});
+   eosio::chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {});
    eosio::chain_apis::read_only::get_table_by_scope_params param{"eosio.token"_n, "accounts"_n, "inita", "", 10};
    eosio::chain_apis::read_only::get_table_by_scope_result result = plugin.read_only::get_table_by_scope(param, fc::time_point::maximum());
 
@@ -134,7 +135,7 @@ BOOST_FIXTURE_TEST_CASE( get_scope_test, TESTER ) try {
 
 } FC_LOG_AND_RETHROW() /// get_scope_test
 
-BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
+BOOST_FIXTURE_TEST_CASE( get_table_test, validating_tester ) try {
    produce_blocks(2);
 
    create_accounts({ "eosio.token"_n, "eosio.ram"_n, "eosio.ramfee"_n, "eosio.stake"_n,
@@ -144,8 +145,8 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    create_accounts(accs);
    produce_block();
 
-   set_code( "eosio.token"_n, contracts::eosio_token_wasm() );
-   set_abi( "eosio.token"_n, contracts::eosio_token_abi().data() );
+   set_code( "eosio.token"_n, test_contracts::eosio_token_wasm() );
+   set_abi( "eosio.token"_n, test_contracts::eosio_token_abi().data() );
    produce_blocks(1);
 
    // create currency
@@ -194,14 +195,15 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    produce_blocks(1);
 
    // get table: normal case
-   eosio::chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {}, {});
+   eosio::chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {});
    eosio::chain_apis::read_only::get_table_rows_params p;
    p.code = "eosio.token"_n;
    p.scope = "inita";
    p.table = "accounts"_n;
    p.json = true;
    p.index_position = "primary";
-   eosio::chain_apis::read_only::get_table_rows_result result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   auto result = get_table_rows_full(plugin, p, fc::time_point::maximum());
+   
    BOOST_REQUIRE_EQUAL(4u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 4) {
@@ -213,7 +215,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
 
    // get table: reverse ordered
    p.reverse = true;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(4u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 4) {
@@ -226,7 +228,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    // get table: reverse ordered, with ram payer
    p.reverse = true;
    p.show_payer = true;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(4u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 4) {
@@ -245,7 +247,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    p.lower_bound = "BBB";
    p.upper_bound = "CCC";
    p.reverse = false;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(2u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 2) {
@@ -257,7 +259,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    p.lower_bound = "BBB";
    p.upper_bound = "CCC";
    p.reverse = true;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(2u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 2) {
@@ -269,7 +271,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    p.lower_bound = p.upper_bound = "";
    p.limit = 1;
    p.reverse = false;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(1u, result.rows.size());
    BOOST_REQUIRE_EQUAL(true, result.more);
    if (result.rows.size() >= 1) {
@@ -280,7 +282,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    p.lower_bound = p.upper_bound = "";
    p.limit = 1;
    p.reverse = true;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(1u, result.rows.size());
    BOOST_REQUIRE_EQUAL(true, result.more);
    if (result.rows.size() >= 1) {
@@ -292,7 +294,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    p.upper_bound = "CCC";
    p.limit = 1;
    p.reverse = false;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(1u, result.rows.size());
    BOOST_REQUIRE_EQUAL(true, result.more);
    if (result.rows.size() >= 1) {
@@ -304,7 +306,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
    p.upper_bound = "CCC";
    p.limit = 1;
    p.reverse = true;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(1u, result.rows.size());
    BOOST_REQUIRE_EQUAL(true, result.more);
    if (result.rows.size() >= 1) {
@@ -313,18 +315,18 @@ BOOST_FIXTURE_TEST_CASE( get_table_test, TESTER ) try {
 
 } FC_LOG_AND_RETHROW()
 
-BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
+BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, validating_tester ) try {
    produce_blocks(2);
 
    create_accounts({ "eosio.token"_n, "eosio.ram"_n, "eosio.ramfee"_n, "eosio.stake"_n,
-      "eosio.bpay"_n, "eosio.vpay"_n, "eosio.saving"_n, "eosio.names"_n });
+      "eosio.bpay"_n, "eosio.vpay"_n, "eosio.saving"_n, "eosio.names"_n, "eosio.rex"_n });
 
    std::vector<account_name> accs{"inita"_n, "initb"_n, "initc"_n, "initd"_n};
    create_accounts(accs);
    produce_block();
 
-   set_code( "eosio.token"_n, contracts::eosio_token_wasm() );
-   set_abi( "eosio.token"_n, contracts::eosio_token_abi().data() );
+   set_code( "eosio.token"_n, test_contracts::eosio_token_wasm() );
+   set_abi( "eosio.token"_n, test_contracts::eosio_token_abi().data() );
    produce_blocks(1);
 
    // create currency
@@ -339,8 +341,8 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    }
    produce_blocks(1);
 
-   set_code( config::system_account_name, contracts::eosio_system_wasm() );
-   set_abi( config::system_account_name, contracts::eosio_system_abi().data() );
+   set_code( config::system_account_name, test_contracts::eosio_system_wasm() );
+   set_abi( config::system_account_name, test_contracts::eosio_system_abi().data() );
 
    base_tester::push_action(config::system_account_name, "init"_n,
                             config::system_account_name,  mutable_variant_object()
@@ -363,7 +365,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    produce_blocks(1);
 
    // get table: normal case
-   eosio::chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {}, {});
+   eosio::chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {});
    eosio::chain_apis::read_only::get_table_rows_params p;
    p.code = "eosio"_n;
    p.scope = "eosio";
@@ -371,7 +373,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    p.json = true;
    p.index_position = "secondary"; // ordered by high_bid
    p.key_type = "i64";
-   eosio::chain_apis::read_only::get_table_rows_result result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   eosio::chain_apis::read_only::get_table_rows_result result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(4u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 4) {
@@ -395,7 +397,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    // reverse search, with show ram payer
    p.reverse = true;
    p.show_payer = true;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(4u, result.rows.size());
    BOOST_REQUIRE_EQUAL(false, result.more);
    if (result.rows.size() >= 4) {
@@ -424,7 +426,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    p.reverse = false;
    p.show_payer = false;
    p.limit = 1;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(1u, result.rows.size());
    BOOST_REQUIRE_EQUAL(true, result.more);
    if (result.rows.size() >= 1) {
@@ -437,7 +439,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    p.reverse = true;
    p.show_payer = false;
    p.limit = 1;
-   result = plugin.read_only::get_table_rows(p, fc::time_point::maximum());
+   result = get_table_rows_full(plugin, p, fc::time_point::maximum());
    BOOST_REQUIRE_EQUAL(1u, result.rows.size());
    BOOST_REQUIRE_EQUAL(true, result.more);
    if (result.rows.size() >= 1) {
@@ -449,12 +451,12 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
 } FC_LOG_AND_RETHROW()
 
 
-BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
+BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, validating_tester ) try {
    create_account("test"_n);
 
    // setup contract and abi
-   set_code( "test"_n, contracts::get_table_test_wasm() );
-   set_abi( "test"_n, contracts::get_table_test_abi().data() );
+   set_code( "test"_n, test_contracts::get_table_test_wasm() );
+   set_abi( "test"_n, test_contracts::get_table_test_abi().data() );
    produce_block();
 
    // Init some data
@@ -515,7 +517,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    // }
 
 
-   chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {}, {});
+   chain_apis::read_only plugin(*(this->control), {}, fc::microseconds::maximum(), fc::microseconds::maximum(), {});
    chain_apis::read_only::get_table_rows_params params = []{
       chain_apis::read_only::get_table_rows_params params{};
       params.json=true;
@@ -532,12 +534,12 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "1";
    params.lower_bound = "0";
 
-   auto res_1 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_1 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    BOOST_REQUIRE(res_1.rows.size() > 0);
    BOOST_TEST(res_1.rows[0].get_object()["key"].as<uint64_t>() == 0);
    BOOST_TEST(res_1.next_key == "1");
    params.lower_bound = res_1.next_key;
-   auto more2_res_1 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_1 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    BOOST_REQUIRE(more2_res_1.rows.size() > 0);
    BOOST_TEST(more2_res_1.rows[0].get_object()["key"].as<uint64_t>() == 1);
 
@@ -547,12 +549,12 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "2";
    params.lower_bound = "5";
 
-   auto res_2 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_2 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    BOOST_REQUIRE(res_2.rows.size() > 0);
    BOOST_TEST(res_2.rows[0].get_object()["sec64"].as<uint64_t>() == 5);
    BOOST_TEST(res_2.next_key == "7");
    params.lower_bound = res_2.next_key;
-   auto more2_res_2 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_2 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    BOOST_REQUIRE(more2_res_2.rows.size() > 0);
    BOOST_TEST(more2_res_2.rows[0].get_object()["sec64"].as<uint64_t>() == 7);
 
@@ -561,13 +563,13 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "3";
    params.lower_bound = "5";
 
-   auto res_3 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_3 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    chain::uint128_t sec128_expected_value = 5;
    BOOST_REQUIRE(res_3.rows.size() > 0);
    BOOST_CHECK(res_3.rows[0].get_object()["sec128"].as<chain::uint128_t>() == sec128_expected_value);
    BOOST_TEST(res_3.next_key == "7");
    params.lower_bound = res_3.next_key;
-   auto more2_res_3 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_3 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    chain::uint128_t more2_sec128_expected_value = 7;
    BOOST_REQUIRE(more2_res_3.rows.size() > 0);
    BOOST_CHECK(more2_res_3.rows[0].get_object()["sec128"].as<chain::uint128_t>() == more2_sec128_expected_value);
@@ -577,14 +579,14 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "4";
    params.lower_bound = "5.0";
 
-   auto res_4 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_4 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    float64_t secdouble_expected_value = ui64_to_f64(5);
    BOOST_REQUIRE(res_4.rows.size() > 0);
    float64_t secdouble_res_value = res_4.rows[0].get_object()["secdouble"].as<float64_t>();
    BOOST_CHECK(secdouble_res_value == secdouble_expected_value);
    BOOST_TEST(res_4.next_key == "7.00000000000000000");
    params.lower_bound = res_4.next_key;
-   auto more2_res_4 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_4 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    float64_t more2_secdouble_expected_value = ui64_to_f64(7);
    BOOST_REQUIRE(more2_res_4.rows.size() > 0);
    float64_t more2_secdouble_res_value = more2_res_4.rows[0].get_object()["secdouble"].as<float64_t>();
@@ -595,14 +597,14 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "5";
    params.lower_bound = "5.0";
 
-   auto res_5 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_5 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    float128_t secldouble_expected_value = ui64_to_f128(5);
    BOOST_REQUIRE(res_5.rows.size() > 0);
    float128_t secldouble_res_value =  res_5.rows[0].get_object()["secldouble"].as<float128_t>();
    BOOST_TEST(secldouble_res_value == secldouble_expected_value);
    BOOST_TEST(res_5.next_key == "7.00000000000000000");
    params.lower_bound = res_5.next_key;
-   auto more2_res_5 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_5 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    float128_t more2_secldouble_expected_value = ui64_to_f128(7);
    BOOST_REQUIRE(more2_res_5.rows.size() > 0);
    float128_t more2_secldouble_res_value =  more2_res_5.rows[0].get_object()["secldouble"].as<float128_t>();
@@ -615,7 +617,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "2";
    params.lower_bound = "2652d68fbbf6000c703b35fdc607b09cd8218cbeea1d108b5c9e84842cdd5ea5"; // This is hash of "thirdinput"
 
-   auto res_6 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_6 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    checksum256_type sec256_expected_value = checksum256_type::hash(std::string("thirdinput"));
    BOOST_REQUIRE(res_6.rows.size() > 0);
    checksum256_type sec256_res_value = res_6.rows[0].get_object()["sec256"].as<checksum256_type>();
@@ -623,7 +625,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    BOOST_TEST(res_6.rows[0].get_object()["hash_input"].as<string>() == std::string("thirdinput"));
    BOOST_TEST(res_6.next_key == "3cb93a80b47b9d70c5296be3817d34b48568893b31468e3a76337bb7d3d0c264");
    params.lower_bound = res_6.next_key;
-   auto more2_res_6 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_6 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    checksum256_type more2_sec256_expected_value = checksum256_type::hash(std::string("secondinput"));
    BOOST_REQUIRE(more2_res_6.rows.size() > 0);
    checksum256_type more2_sec256_res_value = more2_res_6.rows[0].get_object()["sec256"].as<checksum256_type>();
@@ -635,7 +637,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "2";
    params.lower_bound = "0x2652d68fbbf6000c703b35fdc607b09cd8218cbeea1d108b5c9e84842cdd5ea5"; // This is sha256 hash of "thirdinput" as number
 
-   auto res_7 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_7 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    checksum256_type i256_expected_value = checksum256_type::hash(std::string("thirdinput"));
    BOOST_REQUIRE(res_7.rows.size() > 0);
    checksum256_type i256_res_value = res_7.rows[0].get_object()["sec256"].as<checksum256_type>();
@@ -643,7 +645,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    BOOST_TEST(res_7.rows[0].get_object()["hash_input"].as<string>() == "thirdinput");
    BOOST_TEST(res_7.next_key == "0x3cb93a80b47b9d70c5296be3817d34b48568893b31468e3a76337bb7d3d0c264");
    params.lower_bound = res_7.next_key;
-   auto more2_res_7 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_7 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    checksum256_type more2_i256_expected_value = checksum256_type::hash(std::string("secondinput"));
    BOOST_REQUIRE(more2_res_7.rows.size() > 0);
    checksum256_type more2_i256_res_value = more2_res_7.rows[0].get_object()["sec256"].as<checksum256_type>();
@@ -655,7 +657,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    params.index_position = "3";
    params.lower_bound = "ab4314638b573fdc39e5a7b107938ad1b5a16414"; // This is ripemd160 hash of "thirdinput"
 
-   auto res_8 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto res_8 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    ripemd160 sec160_expected_value = ripemd160::hash(std::string("thirdinput"));
    BOOST_REQUIRE(res_8.rows.size() > 0);
    ripemd160 sec160_res_value = res_8.rows[0].get_object()["sec160"].as<ripemd160>();
@@ -663,7 +665,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    BOOST_TEST(res_8.rows[0].get_object()["hash_input"].as<string>() == "thirdinput");
    BOOST_TEST(res_8.next_key == "fb9d03d3012dc2a6c7b319f914542e3423550c2a");
    params.lower_bound = res_8.next_key;
-   auto more2_res_8 = plugin.get_table_rows(params, fc::time_point::maximum());
+   auto more2_res_8 = get_table_rows_full(plugin, params, fc::time_point::maximum());
    ripemd160 more2_sec160_expected_value = ripemd160::hash(std::string("secondinput"));
    BOOST_REQUIRE(more2_res_8.rows.size() > 0);
    ripemd160 more2_sec160_res_value = more2_res_8.rows[0].get_object()["sec160"].as<ripemd160>();

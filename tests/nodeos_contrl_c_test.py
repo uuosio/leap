@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 
-from datetime import datetime
-from datetime import timedelta
-import time
-import json
 import signal
+import time
 
-from TestHarness import Cluster, Node, TestHelper, Utils, WalletMgr
-from core_symbol import CORE_SYMBOL
+from TestHarness import Cluster, Node, TestHelper, Utils, WalletMgr, CORE_SYMBOL
 
 ###############################################################
 # nodeos_contrl_c_lr_test
@@ -22,9 +18,9 @@ from core_symbol import CORE_SYMBOL
 Print = Utils.Print
 errorExit=Utils.errorExit
 
-args = TestHelper.parse_args({"--wallet-port", "-v"})
+args = TestHelper.parse_args({"--wallet-port", "-v","--unshared"})
 
-cluster=Cluster(walletd=True)
+cluster=Cluster(walletd=True,unshared=args.unshared)
 killAll=True
 totalProducerNodes=2
 totalNonProducerNodes=1
@@ -37,6 +33,7 @@ producerEndpoint = '127.0.0.1:8888'
 httpServerAddress = '127.0.0.1:8889'
 
 testSuccessful=False
+trxGenLauncher=None
 
 try:
     TestHelper.printSystemInfo("BEGIN")
@@ -47,7 +44,7 @@ try:
     specificExtraNodeosArgs = {}
     # producer nodes will be mapped to 0 through totalProducerNodes-1, so the number totalProducerNodes will be the non-producing node
     specificExtraNodeosArgs[totalProducerNodes] = "--plugin eosio::producer_plugin --plugin eosio::chain_api_plugin --plugin eosio::http_plugin "
-    "--plugin eosio::txn_test_gen_plugin --plugin eosio::producer_api_plugin "
+    "--plugin eosio::producer_api_plugin "
     extraNodeosArgs = " --http-max-response-time-ms 990000 "
 
     # ***   setup topogrophy   ***
@@ -57,7 +54,7 @@ try:
 
     if cluster.launch(prodCount=1, topo="bridge", pnodes=totalProducerNodes,
                       totalNodes=totalNodes, totalProducers=totalProducers,
-                      useBiosBootFile=False, specificExtraNodeosArgs=specificExtraNodeosArgs,
+                      specificExtraNodeosArgs=specificExtraNodeosArgs,
                       extraNodeosArgs=extraNodeosArgs) is False:
         Utils.cmdError("launcher")
         Utils.errorExit("Failed to stand up eos cluster.")
@@ -73,6 +70,9 @@ try:
 
     accounts[0].name="tester111111"
     accounts[1].name="tester222222"
+
+    account1PrivKey = accounts[0].activePrivateKey
+    account2PrivKey = accounts[1].activePrivateKey
 
     testWalletName="test"
 
@@ -96,10 +96,18 @@ try:
     #Reset test success flag for next check
     testSuccessful=False
 
-    for amt in range(1, 500, 1):
-        xferAmount = Node.currencyIntToStr(amt, CORE_SYMBOL)
-        nonProdNode.transferFundsAsync(accounts[0], accounts[1], xferAmount, "test transfer", exitOnError=False)
+    Print("Configure and launch txn generators")
+    targetTpsPerGenerator = 100
+    testTrxGenDurationSec=60
+    trxGeneratorCnt=1
+    cluster.launchTrxGenerators(contractOwnerAcctName=cluster.eosioAccount.name, acctNamesList=[accounts[0].name,accounts[1].name],
+                                acctPrivKeysList=[account1PrivKey,account2PrivKey], nodeId=nonProdNode.nodeId, tpsPerGenerator=targetTpsPerGenerator,
+                                numGenerators=trxGeneratorCnt, durationSec=testTrxGenDurationSec, waitToComplete=False)
 
+    Print("Give txn generator time to spin up and begin producing trxs")
+    time.sleep(10)
+
+    Print("Kill non-producer bridge node")
     testSuccessful = nonProdNode.kill(signal.SIGTERM)
 
     if not testSuccessful:
@@ -107,7 +115,7 @@ try:
         errorExit("Failed to kill the seed node")
 
 finally:
-    TestHelper.shutdown(cluster, walletMgr, testSuccessful=testSuccessful, killEosInstances=True, killWallet=True, keepLogs=True, cleanRun=True, dumpErrorDetails=True)
+    TestHelper.shutdown(cluster, walletMgr, testSuccessful=testSuccessful, killEosInstances=True, killWallet=True, keepLogs=False, cleanRun=True, dumpErrorDetails=True)
 
 errorCode = 0 if testSuccessful else 1
 exit(errorCode)

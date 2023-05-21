@@ -9,7 +9,6 @@ find_package(OpenSSL REQUIRED)
 
 set( fc_sources
      src/uint128.cpp
-     src/real128.cpp
      src/variant.cpp
      src/exception.cpp
      src/variant_object.cpp
@@ -56,14 +55,10 @@ set( fc_sources
      src/crypto/modular_arithmetic.cpp
      src/crypto/blake2.cpp
      src/crypto/k1_recover.cpp
-     src/network/ip.cpp
-     src/network/resolve.cpp
-     src/network/udp_socket.cpp
      src/network/url.cpp
      src/network/http/http_client.cpp
      src/compress/zlib.cpp
      src/log/gelf_appender.cpp
-     src/log/zipkin.cpp
      )
 
 file( GLOB_RECURSE fc_headers ${CMAKE_CURRENT_SOURCE_DIR} *.hpp *.h )
@@ -98,7 +93,6 @@ endif()
 
 find_package(Boost 1.66 REQUIRED COMPONENTS
     date_time
-    filesystem
     chrono
     unit_test_framework
     iostreams)
@@ -126,11 +120,7 @@ find_package(ZLIB REQUIRED)
 target_include_directories(fc PUBLIC include)
 
 # try and make this very clear that this json parser is intended only for webauthn parsing..
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.11.0)
-   set_source_files_properties(src/crypto/elliptic_webauthn.cpp PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/fc/crypto/webauthn_json/include")
-else()
-   set_source_files_properties(src/crypto/elliptic_webauthn.cpp PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/include/fc/crypto/webauthn_json/include")
-endif()
+set_source_files_properties(src/crypto/elliptic_webauthn.cpp PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/include/fc/crypto/webauthn_json/include")
 
 if(WIN32)
   target_link_libraries( fc PUBLIC ws2_32 mswsock userenv )
@@ -140,8 +130,8 @@ if(APPLE)
   find_library(security_framework Security)
   find_library(corefoundation_framework CoreFoundation)
 endif()
-target_link_libraries( fc PUBLIC Boost::date_time Boost::filesystem Boost::chrono Boost::iostreams Threads::Threads
-                                 OpenSSL::Crypto OpenSSL::SSL ZLIB::ZLIB ${PLATFORM_SPECIFIC_LIBS} ${CMAKE_DL_LIBS} secp256k1 ${security_framework} ${corefoundation_framework})
+target_link_libraries( fc PUBLIC Boost::date_time Boost::chrono Boost::iostreams Threads::Threads
+                                 OpenSSL::Crypto ZLIB::ZLIB ${PLATFORM_SPECIFIC_LIBS} ${CMAKE_DL_LIBS} secp256k1 ${security_framework} ${corefoundation_framework})
 
 # Critically, this ensures that OpenSSL 1.1 & 3.0 both have a variant of BN_zero() with void return value. But it also allows access
 #  to some obsoleted AES functions in 3.0 too, since 3.0's API_COMPAT is effectively 3.0 by default

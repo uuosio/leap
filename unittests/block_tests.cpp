@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(block_with_invalid_tx_test)
    const auto& trxs = copy_b->transactions;
    for( const auto& a : trxs )
       trx_digests.emplace_back( a.digest() );
-   copy_b->transaction_mroot = merkle( move(trx_digests) );
+   copy_b->transaction_mroot = merkle( std::move(trx_digests) );
 
    // Re-sign the block
    auto header_bmroot = digest_type::hash( std::make_pair( copy_b->digest(), main.control->head_block_state()->blockroot_merkle.get_root() ) );
@@ -44,10 +44,10 @@ BOOST_AUTO_TEST_CASE(block_with_invalid_tx_test)
 
    // Push block with invalid transaction to other chain
    tester validator;
-   auto bs = validator.control->create_block_state_future( copy_b->calculate_id(), copy_b );
+   auto bsf = validator.control->create_block_state_future( copy_b->calculate_id(), copy_b );
    validator.control->abort_block();
    controller::block_report br;
-   BOOST_REQUIRE_EXCEPTION(validator.control->push_block( br, bs, forked_branch_callback{}, trx_meta_cache_lookup{} ), fc::exception ,
+   BOOST_REQUIRE_EXCEPTION(validator.control->push_block( br, bsf.get(), forked_branch_callback{}, trx_meta_cache_lookup{} ), fc::exception ,
    [] (const fc::exception &e)->bool {
       return e.code() == account_name_exists_exception::code_value ;
    }) ;
@@ -83,10 +83,10 @@ BOOST_AUTO_TEST_CASE(block_with_invalid_tx_mroot_test)
 
    // Push block with invalid transaction to other chain
    tester validator;
-   auto bs = validator.control->create_block_state_future( copy_b->calculate_id(), copy_b );
+   auto bsf = validator.control->create_block_state_future( copy_b->calculate_id(), copy_b );
    validator.control->abort_block();
    controller::block_report br;
-   BOOST_REQUIRE_EXCEPTION(validator.control->push_block( br, bs, forked_branch_callback{}, trx_meta_cache_lookup{} ), fc::exception ,
+   BOOST_REQUIRE_EXCEPTION(validator.control->push_block( br, bsf.get(), forked_branch_callback{}, trx_meta_cache_lookup{} ), fc::exception,
                            [] (const fc::exception &e)->bool {
                               return e.code() == block_validate_exception::code_value &&
                                      e.to_detail_string().find("invalid block transaction merkle root") != std::string::npos;
@@ -115,7 +115,7 @@ std::pair<signed_block_ptr, signed_block_ptr> corrupt_trx_in_block(validating_te
    const auto& trxs = copy_b->transactions;
    for( const auto& a : trxs )
       trx_digests.emplace_back( a.digest() );
-   copy_b->transaction_mroot = merkle( move(trx_digests) );
+   copy_b->transaction_mroot = merkle( std::move(trx_digests) );
 
    // Re-sign the block
    auto header_bmroot = digest_type::hash( std::make_pair( copy_b->digest(), main.control->head_block_state()->blockroot_merkle.get_root() ) );

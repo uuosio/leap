@@ -67,6 +67,8 @@ namespace eosio { namespace testing {
       full
    };
 
+   std::ostream& operator<<(std::ostream& os, setup_policy p);
+
    std::vector<uint8_t> read_wasm( const char* fn );
    std::vector<char>    read_abi( const char* fn );
    std::string          read_wast( const char* fn );
@@ -198,7 +200,7 @@ namespace eosio { namespace testing {
          unapplied_transaction_queue& get_unapplied_transaction_queue() { return unapplied_transactions; }
 
          transaction_trace_ptr    push_transaction( packed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US );
-         transaction_trace_ptr    push_transaction( signed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US, bool no_throw = false );
+         transaction_trace_ptr    push_transaction( signed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US, bool no_throw = false, transaction_metadata::trx_type trx_type = transaction_metadata::trx_type::input );
 
          [[nodiscard]]
          action_result            push_action(action&& cert_act, uint64_t authorizer); // TODO/QUESTION: Is this needed?
@@ -280,12 +282,12 @@ namespace eosio { namespace testing {
 
          template<typename ObjectType, typename IndexBy, typename... Args>
          const auto& get( Args&&... args ) {
-            return control->db().get<ObjectType,IndexBy>( forward<Args>(args)... );
+            return control->db().get<ObjectType,IndexBy>( std::forward<Args>(args)... );
          }
 
          template<typename ObjectType, typename IndexBy, typename... Args>
          const auto* find( Args&&... args ) {
-            return control->db().find<ObjectType,IndexBy>( forward<Args>(args)... );
+            return control->db().find<ObjectType,IndexBy>( std::forward<Args>(args)... );
          }
 
          template< typename KeyType = fc::ecc::private_key_shim >
@@ -341,9 +343,8 @@ namespace eosio { namespace testing {
             return [this]( const account_name& name ) -> std::optional<abi_serializer> {
                try {
                   const auto& accnt = control->db().get<account_object, by_name>( name );
-                  abi_def abi;
-                  if( abi_serializer::to_abi( accnt.abi, abi )) {
-                     return abi_serializer( abi, abi_serializer::create_yield_function( abi_serializer_max_time ) );
+                  if( abi_def abi; abi_serializer::to_abi( accnt.abi, abi )) {
+                     return abi_serializer( std::move(abi), abi_serializer::create_yield_function( abi_serializer_max_time ) );
                   }
                   return std::optional<abi_serializer>();
                } FC_RETHROW_EXCEPTIONS( error, "Failed to find or parse ABI for ${name}", ("name", name))
@@ -490,6 +491,9 @@ namespace eosio { namespace testing {
          }
       }
 
+      tester(const std::function<void(controller&)>& control_setup, setup_policy policy = setup_policy::full,
+             db_read_mode read_mode = db_read_mode::HEAD);
+
       using base_tester::produce_block;
 
       signed_block_ptr produce_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
@@ -526,7 +530,7 @@ namespace eosio { namespace testing {
       }
       controller::config vcfg;
 
-      validating_tester(const flat_set<account_name>& trusted_producers = flat_set<account_name>(), deep_mind_handler* dmlog = nullptr) {
+      validating_tester(const flat_set<account_name>& trusted_producers = flat_set<account_name>(), deep_mind_handler* dmlog = nullptr, setup_policy p = setup_policy::full) {
          auto def_conf = default_config(tempdir);
 
          vcfg = def_conf.first;
@@ -536,7 +540,7 @@ namespace eosio { namespace testing {
          validating_node = create_validating_node(vcfg, def_conf.second, true, dmlog);
 
          init(def_conf.first, def_conf.second);
-         execute_setup_policy(setup_policy::full);
+         execute_setup_policy(p);
       }
 
       static void config_validator(controller::config& vcfg) {
@@ -599,7 +603,7 @@ namespace eosio { namespace testing {
          auto sb = _produce_block(skip_time, false);
          auto bsf = validating_node->create_block_state_future( sb->calculate_id(), sb );
          controller::block_report br;
-         validating_node->push_block( br, bsf, forked_branch_callback{}, trx_meta_cache_lookup{} );
+         validating_node->push_block( br, bsf.get(), forked_branch_callback{}, trx_meta_cache_lookup{} );
 
          return sb;
       }
@@ -609,9 +613,9 @@ namespace eosio { namespace testing {
       }
 
       void validate_push_block(const signed_block_ptr& sb) {
-         auto bs = validating_node->create_block_state_future( sb->calculate_id(), sb );
+         auto bsf = validating_node->create_block_state_future( sb->calculate_id(), sb );
          controller::block_report br;
-         validating_node->push_block( br, bs, forked_branch_callback{}, trx_meta_cache_lookup{} );
+         validating_node->push_block( br, bsf.get(), forked_branch_callback{}, trx_meta_cache_lookup{} );
       }
 
       signed_block_ptr produce_empty_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
@@ -619,7 +623,7 @@ namespace eosio { namespace testing {
          auto sb = _produce_block(skip_time, true);
          auto bsf = validating_node->create_block_state_future( sb->calculate_id(), sb );
          controller::block_report br;
-         validating_node->push_block( br, bsf, forked_branch_callback{}, trx_meta_cache_lookup{} );
+         validating_node->push_block( br, bsf.get(), forked_branch_callback{}, trx_meta_cache_lookup{} );
 
          return sb;
       }

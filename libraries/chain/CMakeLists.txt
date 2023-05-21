@@ -5,8 +5,8 @@ file(GLOB HEADERS "include/eosio/chain/*.hpp"
                   "include/eosio/chain/webassembly/*.hpp"
                   "${CMAKE_CURRENT_BINARY_DIR}/include/eosio/chain/core_symbol.hpp" )
 
-if(APPLE AND UNIX)
-   set(PLATFORM_TIMER_IMPL platform_timer_macos.cpp)
+if((APPLE AND UNIX) OR (${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD"))
+   set(PLATFORM_TIMER_IMPL platform_timer_kqueue.cpp)
 else()
    try_run(POSIX_TIMER_TEST_RUN_RESULT POSIX_TIMER_TEST_COMPILE_RESULT ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/platform_timer_posix_test.c)
    if(POSIX_TIMER_TEST_RUN_RESULT EQUAL 0)
@@ -107,6 +107,7 @@ add_library( eosio_chain
               abi_serializer.cpp
               asset.cpp
               snapshot.cpp
+              snapshot_scheduler.cpp
               deep_mind.cpp
               vm_api/vm_api_proxy.cpp
               vm_api/action.cpp
@@ -152,7 +153,7 @@ add_library( eosio_chain
              ${HEADERS}
              )
 
-target_link_libraries( eosio_chain PUBLIC bn256 fc chainbase eosio_rapidjson Logging IR WAST WASM Runtime
+target_link_libraries( eosio_chain PUBLIC bn256 fc chainbase eosio_rapidjson Logging IR WAST WASM
                        softfloat builtins ${CHAIN_EOSVM_LIBRARIES} ${LLVM_LIBS} ${CHAIN_RT_LINKAGE}
                      )
 target_include_directories( eosio_chain
