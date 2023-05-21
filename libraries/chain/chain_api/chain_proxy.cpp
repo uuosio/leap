@@ -185,7 +185,7 @@ uint32_t chain_proxy::head_block_num() {
 }
 
 string chain_proxy::head_block_time() {
-    return c->head_block_time();
+    return c->head_block_time().to_iso_string();
 }
 
 string chain_proxy::head_block_id() {
@@ -205,42 +205,49 @@ string chain_proxy::head_block_state() {
 }
 
 uint32_t chain_proxy::fork_db_head_block_num() {
-    return c->fork_db_head_block_num();
+    return 0;
+    // return c->fork_db_head_block_num();
 }
 
 string chain_proxy::fork_db_head_block_id() {
-    return c->fork_db_head_block_id().str();
+    return "";
+    // return c->fork_db_head_block_id().str();
 }
 
 string chain_proxy::fork_db_head_block_time() {
-    return c->fork_db_head_block_time();
+    return "";
+    // return c->fork_db_head_block_time();
 }
 
 string chain_proxy::fork_db_head_block_producer() {
-    return c->fork_db_head_block_producer().to_string();
+    return "";
+    // return c->fork_db_head_block_producer().to_string();
 }
 
 uint32_t chain_proxy::fork_db_pending_head_block_num() {
-    try {
-        return c->fork_db_pending_head_block_num();
-    } CATCH_AND_LOG_EXCEPTION()
+    // try {
+    //     return c->fork_db_pending_head_block_num();
+    // } CATCH_AND_LOG_EXCEPTION()
     return 0;
 }
 
 string chain_proxy::fork_db_pending_head_block_id() {
-    return c->fork_db_pending_head_block_id().str();
+    return "";
+    // return c->fork_db_pending_head_block_id().str();
 }
 
 string chain_proxy::fork_db_pending_head_block_time() {
-    return c->fork_db_pending_head_block_time();
+    return "";
+    // return c->fork_db_pending_head_block_time();
 }
 
 string chain_proxy::fork_db_pending_head_block_producer() {
-    return c->fork_db_pending_head_block_producer().to_string();
+    return "";
+    // return c->fork_db_pending_head_block_producer().to_string();
 }
 
 string chain_proxy::pending_block_time() {
-    return c->pending_block_time();
+    return c->pending_block_time().to_iso_string();
 }
 
 string chain_proxy::pending_block_producer() {
@@ -525,7 +532,7 @@ void chain_proxy::gen_transaction(bool json, string& _actions, string& expiratio
         signed_transaction trx;
         auto actions = fc::json::from_string(_actions).as<vector<eosio::chain::action>>();
         trx.actions = std::move(actions);
-        trx.expiration = fc::time_point::from_iso_string(expiration);
+        trx.expiration = fc::time_point_sec::from_iso_string(expiration);
         eosio::chain::block_id_type id(reference_block_id);
         trx.set_reference_block(id);
         trx.max_net_usage_words = 0;
@@ -647,12 +654,12 @@ bool chain_proxy::pack_action_args(string& account, string& action, string& _arg
     return false;
 }
 
-string chain_proxy::unpack_action_args(string& name, string& action, string& _binargs) {
+string chain_proxy::unpack_action_args(string& account, string& action, string& _binargs) {
     try {
         load_abi(account);
-        auto& serializer = abi_cache[name];
+        auto& serializer = abi_cache[account];
         if (!serializer) {
-            EOS_ASSERT(false, action_validate_exception, "ABI for {account} not found!", ("account", name));
+            EOS_ASSERT(false, action_validate_exception, "ABI for {account} not found!", ("account", account));
             return "";
         }
         auto action_type = serializer->get_action_type(action_name(action));

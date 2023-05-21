@@ -3,6 +3,7 @@
 #include <fc/io/json.hpp>
 #include <fc/io/raw.hpp>
 #include <fc/variant.hpp>
+#include <boost/filesystem.hpp>
 #include <eosio/chain/controller.hpp>
 #include <eosio/chain/genesis_state.hpp>
 #include <eosio/chain/abi_def.hpp>

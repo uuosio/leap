@@ -2651,7 +2651,7 @@ int chain_rpc_api_proxy::get_info(string& result) {
       auto& cc = *this->chain();
       std::optional<account_query_db> aqdb;
       auto max_time = fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us);
-      results = read_only(cc, aqdb, max_time, max_time, nullptr, nullptr).get_info(params, fc::time_point::maximum());
+      results = read_only(cc, aqdb, max_time, max_time, nullptr).get_info(params, fc::time_point::maximum());
       result = fc::json::to_string(fc::variant(results), fc::time_point::maximum());
       return 1;
     } CATCH_AND_CALL(next);
@@ -2670,23 +2670,43 @@ int chain_rpc_api_proxy::api_name(string& params, string& result) { \
       std::optional<account_query_db> aqdb; \
       auto _params = fc::json::from_string(params).as<read_only::api_name ## _params>(); \
       auto max_time = fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us); \
-      auto _result = read_only(cc, aqdb, max_time, max_time, nullptr, nullptr).api_name(_params, fc::time_point::maximum()); \
-      result = fc::json::to_string(fc::variant(_result), fc::time_point::maximum()); \
+      auto _result = read_only(cc, aqdb, max_time, max_time, nullptr).api_name(_params, fc::time_point::maximum()); \
+      result = fc::json::to_string(_result, fc::time_point::maximum()); \
+      return 1;\
+   } CATCH_AND_CALL(next); \
+   return 0; \
+}
+
+#define CHAIN_API_RO_WITH_CALL_RESULT(api_name, call_result) \
+int chain_rpc_api_proxy::api_name(string& params, string& result) { \
+   auto next = [&result](const t_or_exception<call_result>& ex) { \
+      result = std::get<fc::exception_ptr>(ex)->to_detail_string(); \
+      get_ipyeos_proxy()->set_last_error(result); \
+      \
+   }; \
+   try { \
+      auto& cc = *this->chain(); \
+      std::optional<account_query_db> aqdb; \
+      auto _params = fc::json::from_string(params).as<read_only::api_name ## _params>(); \
+      auto max_time = fc::microseconds(eosio::chain::config::default_abi_serializer_max_time_us); \
+      auto _get_result_callback = read_only(cc, aqdb, max_time, max_time, nullptr).api_name(_params, fc::time_point::maximum()); \
+      auto __result = std::get<call_result>(_get_result_callback()); \
+      result = fc::json::to_string(__result, fc::time_point::maximum()); \
       return 1;\
    } CATCH_AND_CALL(next); \
    return 0; \
 }
 
 CHAIN_API_RO(get_activated_protocol_features)
-CHAIN_API_RO(get_block)
+CHAIN_API_RO_WITH_CALL_RESULT(get_block, fc::variant)
 CHAIN_API_RO(get_block_header_state)
-CHAIN_API_RO(get_account)
+CHAIN_API_RO_WITH_CALL_RESULT(get_account, chain_apis::read_only::get_account_results)
 CHAIN_API_RO(get_code)
 CHAIN_API_RO(get_code_hash)
 CHAIN_API_RO(get_abi)
 CHAIN_API_RO(get_raw_code_and_abi)
 CHAIN_API_RO(get_raw_abi)
-CHAIN_API_RO(get_table_rows)
+CHAIN_API_RO_WITH_CALL_RESULT(get_table_rows, chain_apis::read_only::get_table_rows_result)
 CHAIN_API_RO(get_table_by_scope)
 CHAIN_API_RO(get_currency_balance)
 CHAIN_API_RO(get_currency_stats)
@@ -2694,10 +2714,18 @@ CHAIN_API_RO(get_producers)
 CHAIN_API_RO(get_producer_schedule)
 
 CHAIN_API_RO(get_scheduled_transactions)
-CHAIN_API_RO(abi_json_to_bin)
-CHAIN_API_RO(abi_bin_to_json)
+// CHAIN_API_RO(abi_json_to_bin)
+// CHAIN_API_RO(abi_bin_to_json)
 CHAIN_API_RO(get_required_keys)
 CHAIN_API_RO(get_transaction_id)
+
+int chain_rpc_api_proxy::abi_json_to_bin(string& params, string& result) {
+   return 0;
+}
+
+int chain_rpc_api_proxy::abi_bin_to_json(string& params, string& result) {
+   return 0;
+}
 
 chain_rpc_api_proxy *new_chain_api_proxy(eosio::chain::controller *c) {
    return new chain_rpc_api_proxy(c);

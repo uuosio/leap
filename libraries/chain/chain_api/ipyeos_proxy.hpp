@@ -25,7 +25,7 @@ class apply_context_proxy;
 typedef chain_rpc_api_proxy *(*fn_new_chain_api)(eosio::chain::controller *c);
 
 typedef int (*fn_eos_init)(int argc, char** argv);
-typedef int (*fn_eos_exec)();
+typedef int (*fn_eos_exec)(int argc, char** argv);
 
 class ipyeos_proxy {
     public:
