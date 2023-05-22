@@ -59,7 +59,7 @@ class ipyeos_proxy {
         virtual string create_key(string &key_type);
         virtual string get_public_key(string &priv_key);
 
-        virtual string sign_digest(string &priv_key, string &digest);
+        virtual string sign_digest(string &digest, string &priv_key);
 
         fn_new_chain_api new_chain_api = nullptr;
 

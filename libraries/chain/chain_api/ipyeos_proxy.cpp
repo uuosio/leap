@@ -142,11 +142,11 @@ string ipyeos_proxy::get_public_key(string &priv_key) {
     return "";
 }
 
-string ipyeos_proxy::sign_digest(string &priv_key, string &digest) {
+string ipyeos_proxy::sign_digest(string &digest, string &priv_key) {
     try {
         auto _priv_key = fc::variant(priv_key).as<fc::crypto::private_key>();
         digest_type _digest = fc::variant(digest).as<eosio::chain::digest_type>();
-        return fc::json::to_string(_priv_key.sign(_digest), fc::time_point::maximum());
+        return _priv_key.sign(_digest).to_string();
     } CATCH_AND_LOG_EXCEPTION();
     return "";
 }

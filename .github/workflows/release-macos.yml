@@ -37,8 +37,7 @@ jobs:
           brew install ninja
       - name: Build
         run: |
-          cd libraries/eos-vm
-          cd ../..
+          cp patch/bitint_arithmetic.h libraries/libfc/libraries//bn256/src/bitint_arithmetic.h
           mkdir build
           cd build
           cmake -DCMAKE_PREFIX_PATH="$HOME/boost1.79" -DCMAKE_BUILD_TYPE=Release -GNinja ..
