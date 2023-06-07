@@ -7,18 +7,20 @@
 
 static ipyeos_proxy *s_proxy = nullptr;
 
-extern "C" void ipyeos_init_proxy(fn_eos_init init, fn_eos_exec exec) {
+extern "C" void ipyeos_init_proxy(eos_cb cb) {
     if (s_proxy) {
         return;
     }
 
     s_proxy = new ipyeos_proxy();
-    s_proxy->eos_init = init;
-    s_proxy->eos_exec = exec;
+    s_proxy->eos_init = cb.init;
+    s_proxy->eos_exec = cb.exec;
+    s_proxy->eos_exec_once = cb.exec_once;
+    s_proxy->eos_quit = cb.quit;
 }
 
-extern "C" void ipyeos_init_chain(fn_eos_init init, fn_eos_exec exec) {
-    ipyeos_init_proxy(init, exec);
+extern "C" void ipyeos_init_chain(eos_cb cb) {
+    ipyeos_init_proxy(cb);
 
     const char *chain_api_lib = getenv("CHAIN_API_LIB");
     if (!chain_api_lib) {

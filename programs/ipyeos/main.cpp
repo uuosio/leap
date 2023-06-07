@@ -110,61 +110,31 @@ enum return_codes {
 extern "C" int start_python(int argc, char **argv);
 extern "C" void init_new_chain_api();
 int eos_init(int argc, char** argv);
-int eos_exec(int argc, char** argv);
+int eos_exec();
+int eos_exec_once();
+
+void app_quit() {
+    appbase::app().quit();
+}
 
 int main(int argc, char** argv)
 {
-   ipyeos_init_chain(eos_init, eos_exec);
+   eos_cb cb = {
+      .init = eos_init,
+      .exec = eos_exec,
+      .exec_once = eos_exec_once,
+      .quit = app_quit,
+   };
+
+   ipyeos_init_chain(cb);
    init_new_chain_api();
    return start_python(argc, argv);
 }
 
-int eos_init(int argc, char** argv)
-{
-   return SUCCESS;
-}
-
-int eos_exec(int argc, char** argv)
+int try_exec(std::function<int(int argc, char** argv)> fn, int argc, char** argv)
 {
    try {
-      appbase::scoped_app app;
-      uint32_t short_hash = 0;
-      fc::from_hex(eosio::version::version_hash(), (char*)&short_hash, sizeof(short_hash));
-
-      app->set_version(htonl(short_hash));
-      app->set_version_string(eosio::version::version_client());
-      app->set_full_version_string(eosio::version::version_full());
-
-      auto root = fc::app_path();
-      app->set_default_data_dir(root / "eosio" / nodeos::config::node_executable_name / "data" );
-      app->set_default_config_dir(root / "eosio" / nodeos::config::node_executable_name / "config" );
-      http_plugin::set_defaults({
-         .default_unix_socket_path = "",
-         .default_http_port = 8888,
-         .server_header = nodeos::config::node_executable_name + "/" + app->version_string()
-      });
-      if(!app->initialize<chain_plugin, net_plugin, producer_plugin, resource_monitor_plugin>(argc, argv, initialize_logging)) {
-         const auto& opts = app->get_options();
-         if( opts.count("help") || opts.count("version") || opts.count("full-version") || opts.count("print-default-config") ) {
-            return SUCCESS;
-         }
-         return INITIALIZE_FAIL;
-      }
-      if (auto resmon_plugin = app->find_plugin<resource_monitor_plugin>()) {
-         resmon_plugin->monitor_directory(app->data_dir());
-      } else {
-         elog("resource_monitor_plugin failed to initialize");
-         return INITIALIZE_FAIL;
-      }
-      initialize_logging();
-      ilog( "${name} version ${ver} ${fv}",
-            ("name", nodeos::config::node_executable_name)("ver", app->version_string())
-            ("fv", app->version_string() == app->full_version_string() ? "" : app->full_version_string()) );
-      ilog("${name} using configuration file ${c}", ("name", nodeos::config::node_executable_name)("c", app->full_config_file_path().string()));
-      ilog("${name} data directory is ${d}", ("name", nodeos::config::node_executable_name)("d", app->data_dir().string()));
-      app->startup();
-      app->set_thread_priority_max();
-      app->exec();
+      return fn(argc, argv);
    } catch( const extract_genesis_state_exception& e ) {
       return EXTRACTED_GENESIS;
    } catch( const fixed_reversible_db_exception& e ) {
@@ -204,4 +174,104 @@ int eos_exec(int argc, char** argv)
 
    ilog("${name} successfully exiting", ("name", nodeos::config::node_executable_name));
    return SUCCESS;
+}
+
+int _eos_init(int argc, char** argv)
+{
+   uint32_t short_hash = 0;
+   fc::from_hex(eosio::version::version_hash(), (char*)&short_hash, sizeof(short_hash));
+
+   appbase::app().set_version(htonl(short_hash));
+   appbase::app().set_version_string(eosio::version::version_client());
+   appbase::app().set_full_version_string(eosio::version::version_full());
+
+   auto root = fc::app_path();
+   appbase::app().set_default_data_dir(root / "eosio" / nodeos::config::node_executable_name / "data" );
+   appbase::app().set_default_config_dir(root / "eosio" / nodeos::config::node_executable_name / "config" );
+   http_plugin::set_defaults({
+      .default_unix_socket_path = "",
+      .default_http_port = 8888,
+      .server_header = nodeos::config::node_executable_name + "/" + appbase::app().version_string()
+   });
+   if(!appbase::app().initialize<chain_plugin, net_plugin, producer_plugin, resource_monitor_plugin>(argc, argv, initialize_logging)) {
+      const auto& opts = appbase::app().get_options();
+      if( opts.count("help") || opts.count("version") || opts.count("full-version") || opts.count("print-default-config") ) {
+         return SUCCESS;
+      }
+      return INITIALIZE_FAIL;
+   }
+   if (auto resmon_plugin = appbase::app().find_plugin<resource_monitor_plugin>()) {
+      resmon_plugin->monitor_directory(appbase::app().data_dir());
+   } else {
+      elog("resource_monitor_plugin failed to initialize");
+      return INITIALIZE_FAIL;
+   }
+   initialize_logging();
+   ilog( "${name} version ${ver} ${fv}",
+         ("name", nodeos::config::node_executable_name)("ver", appbase::app().version_string())
+         ("fv", appbase::app().version_string() == appbase::app().full_version_string() ? "" : appbase::app().full_version_string()) );
+   ilog("${name} using configuration file ${c}", ("name", nodeos::config::node_executable_name)("c", appbase::app().full_config_file_path().string()));
+   ilog("${name} data directory is ${d}", ("name", nodeos::config::node_executable_name)("d", appbase::app().data_dir().string()));
+   appbase::app().startup();
+   appbase::app().set_thread_priority_max();
+   return SUCCESS;
+}
+
+int eos_init(int argc, char** argv) {
+   return try_exec(_eos_init, argc, argv);
+}
+
+int eos_exec() {
+   auto fn = [](int argc, char** argv){
+      appbase::app().exec();
+      return SUCCESS;
+   };
+   return try_exec(fn, 0, (char **)nullptr);
+}
+
+
+int _eos_exec_once() {
+   auto& exec = appbase::app().executor();
+   std::exception_ptr eptr = nullptr;
+
+   auto& io_serv{exec.get_io_service()};
+   boost::asio::io_service::work work(io_serv);
+   (void)work;
+   bool more = true;
+
+   io_serv.poll(); // queue up any ready; allowing high priority item to get into the queue
+   // execute the highest priority item
+   more = exec.execute_highest();
+   if (!more) {
+      more = io_serv.run_one();
+   }
+
+   if (more) {
+      return true;
+   }
+
+   try {
+      exec.clear(); // make sure the queue is empty
+      appbase::app().shutdown();   // may rethrow exceptions
+   } catch (...) {
+      if (!eptr)
+         eptr = std::current_exception();
+   }
+
+   // if we caught an exception while in the application loop, rethrow it so that main()
+   // can catch it and report the error
+   if (eptr)
+      std::rethrow_exception(eptr);
+
+   return false;
+}
+
+int eos_exec_once() {
+   auto fn = [](int argc, char** argv){
+      if (_eos_exec_once()) {
+         return SUCCESS;
+      }
+      return OTHER_FAIL;
+   };
+   return try_exec(fn, 0, (char **)nullptr);
 }

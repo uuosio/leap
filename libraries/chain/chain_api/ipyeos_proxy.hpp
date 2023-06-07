@@ -25,7 +25,16 @@ class apply_context_proxy;
 typedef chain_rpc_api_proxy *(*fn_new_chain_api)(eosio::chain::controller *c);
 
 typedef int (*fn_eos_init)(int argc, char** argv);
-typedef int (*fn_eos_exec)(int argc, char** argv);
+typedef int (*fn_eos_exec)();
+typedef int (*fn_eos_exec_once)();
+typedef void (*fn_eos_quit)();
+
+struct eos_cb {
+    fn_eos_init init;
+    fn_eos_exec exec;
+    fn_eos_exec_once exec_once;
+    fn_eos_quit quit;
+};
 
 class ipyeos_proxy {
     public:
@@ -65,6 +74,8 @@ class ipyeos_proxy {
 
         fn_eos_init eos_init;
         fn_eos_exec eos_exec;
+        fn_eos_exec_once eos_exec_once;
+        fn_eos_quit eos_quit;
 
     private:
         map<eosio::chain::controller*, chain_proxy*> chain_proxy_map;

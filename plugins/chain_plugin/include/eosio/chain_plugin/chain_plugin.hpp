@@ -22,6 +22,7 @@
 
 #include <fc/static_variant.hpp>
 #include <fc/time.hpp>
+#include <fc/crypto/hex.hpp>
 
 namespace fc { class variant; }
 
@@ -94,6 +95,7 @@ struct permission {
 template<typename Type>
 Type convert_to_type(const string& str, const string& desc) {
    try {
+      elog("++++++++convert_to_type: ${str}", ("str", str));
       return fc::variant(str).as<Type>();
    } FC_RETHROW_EXCEPTIONS(warn, "Could not convert ${desc} string '${str}' to key type.", ("desc", desc)("str",str) )
 }
@@ -942,6 +944,7 @@ public:
             // which is the format used by secondary index
             chain::key256_t k;
             uint8_t buffer[32];
+            memset(buffer, 0, 32);
             boost::multiprecision::export_bits(v, buffer, 8, false);
             memcpy(&k[0], buffer + 16, 16);
             memcpy(&k[1], buffer, 16);
