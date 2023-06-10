@@ -28,12 +28,14 @@ typedef int (*fn_eos_init)(int argc, char** argv);
 typedef int (*fn_eos_exec)();
 typedef int (*fn_eos_exec_once)();
 typedef void (*fn_eos_quit)();
+typedef void* (*fn_eos_post)(void* (*fn)(void *), void *args);
 
 struct eos_cb {
     fn_eos_init init;
     fn_eos_exec exec;
     fn_eos_exec_once exec_once;
     fn_eos_quit quit;
+    fn_eos_post post;
 };
 
 class ipyeos_proxy {
@@ -76,6 +78,7 @@ class ipyeos_proxy {
         fn_eos_exec eos_exec;
         fn_eos_exec_once eos_exec_once;
         fn_eos_quit eos_quit;
+        fn_eos_post eos_post;
 
     private:
         map<eosio::chain::controller*, chain_proxy*> chain_proxy_map;

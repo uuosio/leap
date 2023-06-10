@@ -17,6 +17,7 @@ extern "C" void ipyeos_init_proxy(eos_cb cb) {
     s_proxy->eos_exec = cb.exec;
     s_proxy->eos_exec_once = cb.exec_once;
     s_proxy->eos_quit = cb.quit;
+    s_proxy->eos_post = cb.post;
 }
 
 extern "C" void ipyeos_init_chain(eos_cb cb) {

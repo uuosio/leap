@@ -117,6 +117,19 @@ void app_quit() {
     appbase::app().quit();
 }
 
+#include <future>
+
+void *eos_post(void * (*fn)(void *), void *params) {
+   std::promise<void *> promise;
+   std::future<void *> future = promise.get_future();
+   appbase::app().get_io_service().post([fn, params, &promise]() {
+         auto ret = fn(params);
+         promise.set_value(ret);
+      }
+   );
+   return future.get();
+}
+
 int main(int argc, char** argv)
 {
    eos_cb cb = {
@@ -124,6 +137,7 @@ int main(int argc, char** argv)
       .exec = eos_exec,
       .exec_once = eos_exec_once,
       .quit = app_quit,
+      .post = eos_post,
    };
 
    ipyeos_init_chain(cb);
