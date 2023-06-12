@@ -459,7 +459,8 @@ namespace eosio { namespace chain {
    }
 
    void transaction_context::checktime()const {
-      if (get_ipyeos_proxy()->is_debug_enabled()) {
+      auto *proxy = get_ipyeos_proxy_ex();
+      if (proxy != nullptr && proxy->is_debug_enabled()) {
          return;
       }
 

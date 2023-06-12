@@ -18,8 +18,7 @@ using namespace eosio::chain;
 
 static std::map<std::filesystem::path, std::shared_ptr<native_contract>> s_native_libraries;
 
-chain_proxy::chain_proxy()
-{
+chain_proxy::chain_proxy() {
 }
 
 chain_proxy::~chain_proxy() {
