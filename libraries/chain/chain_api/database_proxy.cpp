@@ -36,21 +36,13 @@ unpack_tuple(fc::datastream<const char*>& binary, const std::tuple<Tp...>& t)
     unpack_tuple<I + 1, Tp...>(binary, t);
 }
 
-void database_proxy::set_database(void *db) {
-    this->db = db;
-}
-
-void* database_proxy::get_database() {
-    return db;
-}
-
 void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data) {
     this->handler = handler;
     this->custom_data = custom_data;
 }
 
 template<int object_type, typename object_index, typename index_name>
-int32_t database_object_walk(chainbase::database&db, fn_data_handler handler, void *custom_data) {
+int32_t database_object_walk(chainbase::database& db, fn_data_handler handler, void *custom_data) {
     const auto& idx = db.get_index<object_index, index_name>();
 
     const auto& first = idx.begin();
@@ -150,13 +142,13 @@ int32_t database_object_walk(chainbase::database&db, fn_data_handler handler, vo
 //       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
 //    };
 
-int32_t database_proxy::walk(int32_t tp, int32_t index_position) {
+int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
     if (this->handler == nullptr) {
         elog("database handler not set");
         return -1;
     }
 
-    auto& db = *static_cast<chainbase::database *>(get_database());
+    auto& db = *static_cast<chainbase::database *>(_db);
 
     // by_name account_name
     HANDLE_DATABASE_OBJECT_WALK(account, (by_id))
@@ -424,7 +416,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2, INDEX_TYPE3) \
     HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_3(OBJECT_NAME, OBJECT_NAME##_index, INDEX_POSITION, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2, INDEX_TYPE3)
 
-int32_t database_proxy::walk_range(int32_t tp, int32_t index_position, char *raw_lower_bound, size_t raw_lower_bound_size, char *raw_upper_bound, size_t raw_upper_bound_size) {
+int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position, char *raw_lower_bound, size_t raw_lower_bound_size, char *raw_upper_bound, size_t raw_upper_bound_size) {
     if (this->handler == nullptr) {
         elog("database handler not set");
         return -1;
@@ -432,7 +424,7 @@ int32_t database_proxy::walk_range(int32_t tp, int32_t index_position, char *raw
 
     fc::datastream<const char*> lower_bound_stream(raw_lower_bound, raw_lower_bound_size);
     fc::datastream<const char*> upper_bound_stream(raw_upper_bound, raw_upper_bound_size);
-    auto& db = *static_cast<chainbase::database *>(get_database());
+    auto& db = *static_cast<chainbase::database *>(_db);
 
     // by_name>, account_name
     HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account)
@@ -692,9 +684,9 @@ int32_t database_object_find_composite_key(chainbase::database& db, fc::datastre
     return raw_value.size();
 }
 
-int32_t database_proxy::find(int32_t tp, int32_t index_position, char *raw_data, size_t size, char *out, size_t out_size) {
+int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char *raw_data, size_t size, char *out, size_t out_size) {
     fc::datastream<const char*> stream(raw_data, size);
-    auto& db = *static_cast<chainbase::database *>(get_database());
+    auto& db = *static_cast<chainbase::database *>(_db);
 
     // name code, scope, table;
     // const auto* t_id = db.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple(code, scope, table));
