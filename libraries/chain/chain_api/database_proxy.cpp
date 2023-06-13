@@ -16,8 +16,10 @@
 #include <eosio/chain/database_header_object.hpp>
 
 #include <fc/io/raw.hpp>
+#include <fc/io/json.hpp>
 
 #include "database_proxy.hpp"
+#include "chain_macro.hpp"
 
 using namespace eosio;
 using namespace eosio::chain;
@@ -79,21 +81,6 @@ int32_t database_object_walk(chainbase::database& db, fn_data_handler handler, v
         FC_ASSERT(0, "index position out of range"); \
     }
 
-// int32_t account_object_walk(chainbase::database&db, fn_data_handler handler, void *custom_data) {
-//     const auto& idx = db.get_index<eosio::chain::account_index, eosio::chain::by_name>();
-
-//     const auto& first = idx.begin();
-//     const auto& last = idx.end();
-//     for (auto itr = first; itr != last; ++itr) {
-//         vector<char> data = fc::raw::pack(*itr);
-//         auto ret = handler(account_object_type, data.data(), data.size(), custom_data);
-//         if (!ret) {
-//             return ret;
-//         }
-//     }
-//     return 1;
-// }
-
 //    enum object_type
 //    {
 //       null_object_type = 0,
@@ -150,80 +137,84 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
 
     auto& db = *static_cast<chainbase::database *>(_db);
 
-    // by_name account_name
-    HANDLE_DATABASE_OBJECT_WALK(account, (by_id))
-    // by_name account_name
-    HANDLE_DATABASE_OBJECT_WALK(account_metadata, (by_id)(by_name))
-//    struct by_parent;
-//    struct by_owner;
-//    struct by_name;
-    HANDLE_DATABASE_OBJECT_WALK(permission, (by_id)(by_name))
-    HANDLE_DATABASE_OBJECT_WALK(permission_usage, (by_id))
-//    struct by_action_name;
-//    struct by_permission_name;
-    HANDLE_DATABASE_OBJECT_WALK(permission_link, (by_id)(by_action_name))
-//     by_id
-//     by_scope_primary
-    HANDLE_DATABASE_OBJECT_WALK(key_value, (by_id)(by_scope_primary))
-//   by_id
-//   by_primary
-//   by_secondary
-    HANDLE_DATABASE_OBJECT_WALK(index64, (by_id)(by_primary)(by_secondary))
-    HANDLE_DATABASE_OBJECT_WALK(index128, (by_id)(by_primary))
-    HANDLE_DATABASE_OBJECT_WALK(index256, (by_id)(by_primary))
-    HANDLE_DATABASE_OBJECT_WALK(index_double, (by_id)(by_primary))
-    HANDLE_DATABASE_OBJECT_WALK(index_long_double, (by_id)(by_primary))
+    try {
+        // by_name account_name
+        HANDLE_DATABASE_OBJECT_WALK(account, (by_id))
+        // by_name account_name
+        HANDLE_DATABASE_OBJECT_WALK(account_metadata, (by_id)(by_name))
+    //    struct by_parent;
+    //    struct by_owner;
+    //    struct by_name;
+        HANDLE_DATABASE_OBJECT_WALK(permission, (by_id)(by_name))
+        HANDLE_DATABASE_OBJECT_WALK(permission_usage, (by_id))
+    //    struct by_action_name;
+    //    struct by_permission_name;
+        HANDLE_DATABASE_OBJECT_WALK(permission_link, (by_id)(by_action_name))
+    //     by_id
+    //     by_scope_primary
+        HANDLE_DATABASE_OBJECT_WALK(key_value, (by_id)(by_scope_primary))
+    //   by_id
+    //   by_primary
+    //   by_secondary
+        HANDLE_DATABASE_OBJECT_WALK(index64, (by_id)(by_primary)(by_secondary))
+        HANDLE_DATABASE_OBJECT_WALK(index128, (by_id)(by_primary))
+        HANDLE_DATABASE_OBJECT_WALK(index256, (by_id)(by_primary))
+        HANDLE_DATABASE_OBJECT_WALK(index_double, (by_id)(by_primary))
+        HANDLE_DATABASE_OBJECT_WALK(index_long_double, (by_id)(by_primary))
 
-    HANDLE_DATABASE_OBJECT_WALK_EX(global_property_object_type, global_property_multi_index, (by_id))
-    HANDLE_DATABASE_OBJECT_WALK_EX(dynamic_global_property_object_type, dynamic_global_property_multi_index, (by_id))
-    HANDLE_DATABASE_OBJECT_WALK_EX(block_summary_object_type, block_summary_multi_index, (by_id))
-    HANDLE_DATABASE_OBJECT_WALK_EX(transaction_object_type, transaction_multi_index, (by_id))
-//    by_id
-//    struct by_code_scope_table;
-    HANDLE_DATABASE_OBJECT_WALK_EX(table_id_object_type, table_id_multi_index, (by_id)(by_code_scope_table))
+        HANDLE_DATABASE_OBJECT_WALK_EX(global_property_object_type, global_property_multi_index, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_EX(dynamic_global_property_object_type, dynamic_global_property_multi_index, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_EX(block_summary_object_type, block_summary_multi_index, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_EX(transaction_object_type, transaction_multi_index, (by_id))
+    //    by_id
+    //    struct by_code_scope_table;
+        HANDLE_DATABASE_OBJECT_WALK_EX(table_id_object_type, table_id_multi_index, (by_id)(by_code_scope_table))
 
-//    struct by_trx_id;
-//    struct by_expiration;
-//    struct by_delay;
-//    struct by_sender_id;
+    //    struct by_trx_id;
+    //    struct by_expiration;
+    //    struct by_delay;
+    //    struct by_sender_id;
 
-    // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(generated_transaction_object, generated_transaction_object::id_type, id)>,
-    // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, transaction_id_type, trx_id)>,
-    // ordered_unique< tag<by_expiration>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-    // >
-    // >,
-    // ordered_unique< tag<by_delay>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-    // >
-    // >,
-    // ordered_unique< tag<by_sender_id>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
-    HANDLE_DATABASE_OBJECT_WALK_EX(generated_transaction_object_type, generated_transaction_multi_index, (by_id)(by_trx_id)(by_expiration)(by_delay)(by_sender_id))
+        // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(generated_transaction_object, generated_transaction_object::id_type, id)>,
+        // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, transaction_id_type, trx_id)>,
+        // ordered_unique< tag<by_expiration>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
+        // >
+        // >,
+        // ordered_unique< tag<by_delay>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
+        // >
+        // >,
+        // ordered_unique< tag<by_sender_id>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
+        HANDLE_DATABASE_OBJECT_WALK_EX(generated_transaction_object_type, generated_transaction_multi_index, (by_id)(by_trx_id)(by_expiration)(by_delay)(by_sender_id))
 
-// by_id
-// by_owner
-    HANDLE_DATABASE_OBJECT_WALK_EX(resource_limits_object_type, resource_limits::resource_limits_index, (by_id)(resource_limits::by_owner))
+    // by_id
+    // by_owner
+        HANDLE_DATABASE_OBJECT_WALK_EX(resource_limits_object_type, resource_limits::resource_limits_index, (by_id)(resource_limits::by_owner))
 
-// by_id
-// by_owner
-    HANDLE_DATABASE_OBJECT_WALK_EX(resource_usage_object_type, resource_limits::resource_usage_index, (by_id)(resource_limits::by_owner))
+    // by_id
+    // by_owner
+        HANDLE_DATABASE_OBJECT_WALK_EX(resource_usage_object_type, resource_limits::resource_usage_index, (by_id)(resource_limits::by_owner))
 
-    HANDLE_DATABASE_OBJECT_WALK_EX(resource_limits_state_object_type, resource_limits::resource_limits_state_index, (by_id))
-    HANDLE_DATABASE_OBJECT_WALK_EX(resource_limits_config_object_type, resource_limits::resource_limits_config_index, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_EX(resource_limits_state_object_type, resource_limits::resource_limits_state_index, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_EX(resource_limits_config_object_type, resource_limits::resource_limits_config_index, (by_id))
 
-    HANDLE_DATABASE_OBJECT_WALK_EX(protocol_state_object_type, protocol_state_multi_index, (by_id))
-// by_id
-// by_name
-    HANDLE_DATABASE_OBJECT_WALK(account_ram_correction, (by_id)(by_name))
-// by_id
-// by_code_hash
-    HANDLE_DATABASE_OBJECT_WALK(code, (by_id))
-    HANDLE_DATABASE_OBJECT_WALK_EX(database_header_object_type, database_header_multi_index, (by_id))
-    return -1;
+        HANDLE_DATABASE_OBJECT_WALK_EX(protocol_state_object_type, protocol_state_multi_index, (by_id))
+    // by_id
+    // by_name
+        HANDLE_DATABASE_OBJECT_WALK(account_ram_correction, (by_id)(by_name))
+    // by_id
+    // by_code_hash
+        HANDLE_DATABASE_OBJECT_WALK(code, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_EX(database_header_object_type, database_header_multi_index, (by_id))
+
+    } CATCH_AND_LOG_EXCEPTION();
+
+    return -2;
 }
 
 // walk range by id_type
@@ -286,24 +277,6 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
     return 1;
 }
 
-#define HANDLE_DATABASE_OBJECT_WALK_RANGE(OBJECT_NAME) \
-    if (tp == OBJECT_NAME##_object_type) { \
-        OBJECT_NAME##_object::id_type lower_bound; \
-        OBJECT_NAME##_object::id_type upper_bound; \
-        fc::raw::unpack(lower_bound_stream, lower_bound._id); \
-        fc::raw::unpack(upper_bound_stream, upper_bound._id); \
-        const auto& idx = db.get_index<eosio::chain::OBJECT_NAME##_index, by_id>(); \
-        auto begin_itr = idx.lower_bound(lower_bound); \
-        auto end_itr = idx.lower_bound(upper_bound); \
-        for (auto itr = begin_itr; itr != end_itr; ++itr) { \
-            vector<char> data = fc::raw::pack(*itr); \
-            auto ret = this->handler(tp, itr->id._id, data.data(), data.size(), this->custom_data); \
-            if (!ret) { \
-                return ret; \
-            } \
-        } \
-    }
-
 // by_primary
 // by_secondary
 // table_id, uint64_t
@@ -325,12 +298,6 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
 // #define HANDLE_DATABASE_OBJECT_WALK_EX(OBJECT_TYPE, OBJECT_INDEX, INDEX_NAMES) \
 //     if (OBJECT_TYPE == tp) { \
 //         BOOST_PP_SEQ_FOR_EACH_I(GENERATE_DB_WALK_EX, (OBJECT_TYPE, OBJECT_INDEX), INDEX_NAMES) \
-//         FC_ASSERT(0, "index position out of range"); \
-//     }
-
-// #define HANDLE_DATABASE_OBJECT_WALK_RANGE(OBJECT_NAME, INDEX_NAMES, INDEX_KEY_TYPES) \
-//     if (tp == OBJECT_NAME##_object_type) { \
-//         BOOST_PP_SEQ_FOR_EACH_I(GENERATE_DATABASE_OBJECT_WALK_RANGE, (OBJECT_NAME, INDEX_KEY_TYPES), INDEX_NAMES) \
 //         FC_ASSERT(0, "index position out of range"); \
 //     }
 
@@ -363,7 +330,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == 2) { \
             return database_object_walk_range_by_composite_key<OBJECT_NAME##_object_type, OBJECT_NAME##_index, by_secondary, table_id, SECONDARY_KEY_TYPE, uint64_t>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE: invalid index position"); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(OBJECT_NAME, OBJECT_INDEX) \
@@ -371,7 +338,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == 0) { \
             return database_object_walk_range_by_id_type<OBJECT_NAME##_object_type, OBJECT_INDEX, OBJECT_NAME##_object::id_type>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX: invalid index position"); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(OBJECT_NAME) \
@@ -383,7 +350,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == INDEX_POSITION) { \
             return database_object_walk_range<OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, INDEX_TYPE>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE: invalid index position"); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(OBJECT_NAME, OBJECT_INDEX, INDEX_POSITION, INDEX_NAME, INDEX_TYPE) \
@@ -391,7 +358,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == INDEX_POSITION) { \
             return database_object_walk_range<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, INDEX_TYPE>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX: invalid index position"); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(OBJECT_NAME, OBJECT_INDEX, INDEX_POSITION, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2) \
@@ -399,7 +366,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == INDEX_POSITION) { \
             return database_object_walk_range_by_composite_key<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2: invalid index position"); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2) \
@@ -410,175 +377,178 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == INDEX_POSITION) { \
             return database_object_walk_range_by_composite_key<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2, INDEX_TYPE3>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_3: invalid index position ${tp}, ${n}", ("tp", tp)("n", index_position)); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2, INDEX_TYPE3) \
     HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_3(OBJECT_NAME, OBJECT_NAME##_index, INDEX_POSITION, INDEX_NAME, INDEX_TYPE1, INDEX_TYPE2, INDEX_TYPE3)
 
 int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position, char *raw_lower_bound, size_t raw_lower_bound_size, char *raw_upper_bound, size_t raw_upper_bound_size) {
-    if (this->handler == nullptr) {
-        elog("database handler not set");
-        return -1;
-    }
+    try {
+        if (this->handler == nullptr) {
+            elog("database handler not set");
+            return -1;
+        }
 
-    fc::datastream<const char*> lower_bound_stream(raw_lower_bound, raw_lower_bound_size);
-    fc::datastream<const char*> upper_bound_stream(raw_upper_bound, raw_upper_bound_size);
-    auto& db = *static_cast<chainbase::database *>(_db);
+        fc::datastream<const char*> lower_bound_stream(raw_lower_bound, raw_lower_bound_size);
+        fc::datastream<const char*> upper_bound_stream(raw_upper_bound, raw_upper_bound_size);
+        auto& db = *static_cast<chainbase::database *>(_db);
 
-    // by_name>, account_name
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account)
-    // by_name>, account_name
-    // ordered_unique<tag<by_id>, member<account_metadata_object, account_metadata_object::id_type, &account_metadata_object::id>>,
-    // ordered_unique<tag<by_name>, member<account_metadata_object, account_name, &account_metadata_object::name>>
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account_metadata)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE(account_metadata, 1, by_name, account_name)
-    // by_parent
-    //     permission_object::id_type, &permission_object::parent
-    //     permission_object::id_type, &permission_object::id
+        // by_name>, account_name
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account)
+        // by_name>, account_name
+        // ordered_unique<tag<by_id>, member<account_metadata_object, account_metadata_object::id_type, &account_metadata_object::id>>,
+        // ordered_unique<tag<by_name>, member<account_metadata_object, account_name, &account_metadata_object::name>>
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account_metadata)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE(account_metadata, 1, by_name, account_name)
+        // by_parent
+        //     permission_object::id_type, &permission_object::parent
+        //     permission_object::id_type, &permission_object::id
+        // by_owner
+        //     account_name, &permission_object::owner
+        //     permission_name, &permission_object::name
+        // by_name
+        //     permission_name, &permission_object::name
+        //     permission_object::id_type, &permission_object::id
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(permission)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(permission, 1, by_parent, permission_object::id_type, permission_object::id_type)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(permission, 2, eosio::chain::by_owner, account_name, permission_name)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(permission, 3, by_name, permission_name, permission_object::id_type)
+
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(permission_usage)
+        // ordered_unique<tag<by_id>,
+        // ordered_unique<tag<by_action_name>,
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, code),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, action_name, message_type)
+        // ordered_unique<tag<by_permission_name>,
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_name, required_permission),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_link_object::id_type, id)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(permission_link)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(permission_link, 1, by_action_name, account_name, account_name, account_name)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(permission_link, 2, by_permission_name, account_name, permission_name, permission_link_object::id_type)
+
+        // ordered_unique<tag<by_id>, member<key_value_object, key_value_object::id_type, &key_value_object::id>>,
+        // ordered_unique<tag<by_scope_primary>,
+        //     member<key_value_object, table_id, &key_value_object::t_id>,
+        //     member<key_value_object, uint64_t, &key_value_object::primary_key>
+        // >,
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(key_value)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(key_value, 1, by_scope_primary, table_id, uint64_t)
+
+    //   by_id
+    //   by_primary
+    //   by_secondary
+
+    // by_primary>
+    //         member<index_object, table_id, &index_object::t_id>
+    //         member<index_object, uint64_t, &index_object::primary_key>
+    // by_secondary
+    //         table_id, &index_object::t_id>,
+    //         SecondaryKey, &index_object::secondary_key>,
+    //         uint64_t, &index_object::primary_key>
+        HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index64, uint64_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index128, uint128_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index256, key256_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index_double, float64_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index_long_double, float128_t)
+
+        // ordered_unique<tag<by_id>,
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(global_property, global_property_multi_index)
+        // ordered_unique<tag<by_id>,
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(dynamic_global_property, dynamic_global_property_multi_index)
+
+    // ordered_unique<tag<by_id>
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(block_summary, block_summary_multi_index)
+
+        // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_object::id_type, id)>,
+        // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_id_type, trx_id)>,
+        // ordered_unique< tag<by_expiration>,
+        // composite_key< transaction_object,
+        //      BOOST_MULTI_INDEX_MEMBER( transaction_object, time_point_sec, expiration ),
+        //      BOOST_MULTI_INDEX_MEMBER( transaction_object, transaction_object::id_type, id)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(transaction, transaction_multi_index)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(transaction, transaction_multi_index, 1, by_trx_id, transaction_id_type);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(transaction, transaction_multi_index, 2, by_expiration, time_point_sec, transaction_object::id_type);
+
+    //    by_id
+    //    struct by_code_scope_table;
+        // ordered_unique<tag<by_id>,
+        // ordered_unique<tag<by_code_scope_table>,
+        //     member<table_id_object, account_name, &table_id_object::code>,
+        //     member<table_id_object, scope_name,   &table_id_object::scope>,
+        //     member<table_id_object, table_name,   &table_id_object::table>
+        // >
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(table_id, table_id_multi_index)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_3(table_id, table_id_multi_index, 1, by_code_scope_table, account_name, scope_name, table_name);
+
+    //    struct by_trx_id;
+    //    struct by_expiration;
+    //    struct by_delay;
+    //    struct by_sender_id;
+
+        // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(generated_transaction_object, generated_transaction_object::id_type, id)>,
+        // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, transaction_id_type, trx_id)>,
+        // ordered_unique< tag<by_expiration>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
+        // >
+        // >,
+        // ordered_unique< tag<by_delay>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
+        // >
+        // >,
+        // ordered_unique< tag<by_sender_id>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(generated_transaction, generated_transaction_multi_index)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(generated_transaction, generated_transaction_multi_index, 1, by_expiration, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(generated_transaction, generated_transaction_multi_index, 2, by_delay, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(generated_transaction, generated_transaction_multi_index, 3, by_sender_id, account_name, uint128_t);
+
+    // by_id
     // by_owner
-    //     account_name, &permission_object::owner
-    //     permission_name, &permission_object::name
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits, resource_limits::resource_limits_index)
+
+    // by_id
+    // by_owner
+        // ordered_unique<tag<by_id>, member<resource_usage_object, resource_usage_object::id_type, &resource_usage_object::id>>,
+        // ordered_unique<tag<by_owner>, member<resource_usage_object, account_name, &resource_usage_object::owner> >
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_usage, resource_limits::resource_usage_index)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(resource_usage, resource_limits::resource_usage_index, 1, resource_limits::by_owner, account_name);
+
+    // by_id
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits_state, resource_limits::resource_limits_state_index)
+    // by_id
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits_config, resource_limits::resource_limits_config_index)
+
+    // by_id
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(protocol_state, protocol_state_multi_index)
+    // by_id
     // by_name
-    //     permission_name, &permission_object::name
-    //     permission_object::id_type, &permission_object::id
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(permission)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(permission, 1, by_parent, permission_object::id_type, permission_object::id_type)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(permission, 2, eosio::chain::by_owner, account_name, permission_name)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(permission, 3, by_name, permission_name, permission_object::id_type)
+        // ordered_unique<tag<by_id>, member<account_ram_correction_object, account_ram_correction_object::id_type, &account_ram_correction_object::id>>,
+        // ordered_unique<tag<by_name>, member<account_ram_correction_object, account_name, &account_ram_correction_object::name>>
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account_ram_correction)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE(account_ram_correction, 1, by_name, account_name)
 
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(permission_usage)
-    // ordered_unique<tag<by_id>,
-    // ordered_unique<tag<by_action_name>,
-    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
-    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, code),
-    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, action_name, message_type)
-    // ordered_unique<tag<by_permission_name>,
-    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
-    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_name, required_permission),
-    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_link_object::id_type, id)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(permission_link)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(permission_link, 1, by_action_name, account_name, account_name, account_name)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(permission_link, 2, by_permission_name, account_name, permission_name, permission_link_object::id_type)
+    // by_id
+    // by_code_hash
+        // ordered_unique<tag<by_id>, member<code_object, code_object::id_type, &code_object::id>>,
+        // ordered_unique<tag<by_code_hash>,
+        //     member<code_object, digest_type, &code_object::code_hash>,
+        //     member<code_object, uint8_t,     &code_object::vm_type>,
+        //     member<code_object, uint8_t,     &code_object::vm_version>
 
-    // ordered_unique<tag<by_id>, member<key_value_object, key_value_object::id_type, &key_value_object::id>>,
-    // ordered_unique<tag<by_scope_primary>,
-    //     member<key_value_object, table_id, &key_value_object::t_id>,
-    //     member<key_value_object, uint64_t, &key_value_object::primary_key>
-    // >,
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(key_value)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_2(key_value, 1, by_scope_primary, table_id, uint64_t)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(code)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(code, 1, by_code_hash, digest_type, uint8_t, uint8_t)
 
-//   by_id
-//   by_primary
-//   by_secondary
-
-// by_primary>
-//         member<index_object, table_id, &index_object::t_id>
-//         member<index_object, uint64_t, &index_object::primary_key>
-// by_secondary
-//         table_id, &index_object::t_id>,
-//         SecondaryKey, &index_object::secondary_key>,
-//         uint64_t, &index_object::primary_key>
-    HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index64, uint64_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index128, uint128_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index256, key256_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index_double, float64_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_WALK_RANGE(index_long_double, float128_t)
-
-    // ordered_unique<tag<by_id>,
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(global_property, global_property_multi_index)
-    // ordered_unique<tag<by_id>,
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(dynamic_global_property, dynamic_global_property_multi_index)
-
-// ordered_unique<tag<by_id>
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(block_summary, block_summary_multi_index)
-
-    // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_object::id_type, id)>,
-    // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_id_type, trx_id)>,
-    // ordered_unique< tag<by_expiration>,
-    // composite_key< transaction_object,
-    //      BOOST_MULTI_INDEX_MEMBER( transaction_object, time_point_sec, expiration ),
-    //      BOOST_MULTI_INDEX_MEMBER( transaction_object, transaction_object::id_type, id)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(transaction, transaction_multi_index)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(transaction, transaction_multi_index, 1, by_trx_id, transaction_id_type);
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(transaction, transaction_multi_index, 2, by_expiration, time_point_sec, transaction_object::id_type);
-
-//    by_id
-//    struct by_code_scope_table;
-    // ordered_unique<tag<by_id>,
-    // ordered_unique<tag<by_code_scope_table>,
-    //     member<table_id_object, account_name, &table_id_object::code>,
-    //     member<table_id_object, scope_name,   &table_id_object::scope>,
-    //     member<table_id_object, table_name,   &table_id_object::table>
-    // >
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(table_id, table_id_multi_index)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_3(table_id, table_id_multi_index, 1, by_code_scope_table, account_name, scope_name, table_name);
-
-//    struct by_trx_id;
-//    struct by_expiration;
-//    struct by_delay;
-//    struct by_sender_id;
-
-    // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(generated_transaction_object, generated_transaction_object::id_type, id)>,
-    // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, transaction_id_type, trx_id)>,
-    // ordered_unique< tag<by_expiration>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-    // >
-    // >,
-    // ordered_unique< tag<by_delay>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-    // >
-    // >,
-    // ordered_unique< tag<by_sender_id>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(generated_transaction, generated_transaction_multi_index)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(generated_transaction, generated_transaction_multi_index, 1, by_expiration, time_point, generated_transaction_object::id_type);
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(generated_transaction, generated_transaction_multi_index, 2, by_delay, time_point, generated_transaction_object::id_type);
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX_2(generated_transaction, generated_transaction_multi_index, 3, by_sender_id, account_name, uint128_t);
-
-// by_id
-// by_owner
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits, resource_limits::resource_limits_index)
-
-// by_id
-// by_owner
-    // ordered_unique<tag<by_id>, member<resource_usage_object, resource_usage_object::id_type, &resource_usage_object::id>>,
-    // ordered_unique<tag<by_owner>, member<resource_usage_object, account_name, &resource_usage_object::owner> >
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_usage, resource_limits::resource_usage_index)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(resource_usage, resource_limits::resource_usage_index, 1, resource_limits::by_owner, account_name);
-
-// by_id
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits_state, resource_limits::resource_limits_state_index)
-// by_id
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits_config, resource_limits::resource_limits_config_index)
-
-// by_id
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(protocol_state, protocol_state_multi_index)
-// by_id
-// by_name
-    // ordered_unique<tag<by_id>, member<account_ram_correction_object, account_ram_correction_object::id_type, &account_ram_correction_object::id>>,
-    // ordered_unique<tag<by_name>, member<account_ram_correction_object, account_name, &account_ram_correction_object::name>>
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account_ram_correction)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE(account_ram_correction, 1, by_name, account_name)
-
-// by_id
-// by_code_hash
-    // ordered_unique<tag<by_id>, member<code_object, code_object::id_type, &code_object::id>>,
-    // ordered_unique<tag<by_code_hash>,
-    //     member<code_object, digest_type, &code_object::code_hash>,
-    //     member<code_object, uint8_t,     &code_object::vm_type>,
-    //     member<code_object, uint8_t,     &code_object::vm_version>
-
-    HANDLE_DATABASE_OBJECT_WALK_RANGE(code)
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_3(code, 1, by_code_hash, digest_type, uint8_t, uint8_t)
-
-// by_id
-    HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(database_header, database_header_multi_index)
-    return 1;
+    // by_id
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(database_header, database_header_multi_index)
+        return 1;
+    } CATCH_AND_LOG_EXCEPTION();
+    return -2;
 }
 
 #define HANDLE_DATABASE_OBJECT_FIND_BY_ID(OBJECT_NAME) \
@@ -661,7 +631,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
         if (index_position == 2) { \
             HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(OBJECT_NAME, 2, by_secondary, table_id, SECONDARY_KEY_TYPE, uint64_t); \
         } \
-        FC_ASSERT(0, "invalid index position"); \
+        FC_ASSERT(0, "HANDLE_CONTRACT_TABLE_OBJECT_FIND: invalid index position"); \
     }
 
 template<typename database_object, typename index_name, typename... Ts>
@@ -688,157 +658,158 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
     fc::datastream<const char*> stream(raw_data, size);
     auto& db = *static_cast<chainbase::database *>(_db);
 
-    // name code, scope, table;
-    // const auto* t_id = db.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple(code, scope, table));
+    try {
+        // name code, scope, table;
+        // const auto* t_id = db.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple(code, scope, table));
 
-    // HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(table_id, 1, by_code_scope_table, name, name, name);
+        // HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(table_id, 1, by_code_scope_table, name, name, name);
 
-//     // by_name>, account_name
-//     HANDLE_DATABASE_OBJECT_WALK_RANGE(account)
-    // ordered_unique<tag<by_id>, member<account_object, account_object::id_type, &account_object::id>>,
-    // ordered_unique<tag<by_name>, member<account_object, account_name, &account_object::name>>
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(account)
-    HANDLE_DATABASE_OBJECT_FIND(account, 1, by_name, account_name)
-//     // by_name>, account_name
-    // ordered_unique<tag<by_id>, member<account_metadata_object, account_metadata_object::id_type, &account_metadata_object::id>>,
-    // ordered_unique<tag<by_name>, member<account_metadata_object, account_name, &account_metadata_object::name>>
-//     HANDLE_DATABASE_OBJECT_WALK_RANGE(account_metadata)
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(account_metadata)
-    HANDLE_DATABASE_OBJECT_FIND(account_metadata, 1, by_name, account_name)
-//    struct by_parent;
-//    struct by_owner;
-//    struct by_name;
-    // by_parent
-    //     permission_object::id_type, &permission_object::parent
-    //     permission_object::id_type, &permission_object::id
+    //     // by_name>, account_name
+        // ordered_unique<tag<by_id>, member<account_object, account_object::id_type, &account_object::id>>,
+        // ordered_unique<tag<by_name>, member<account_object, account_name, &account_object::name>>
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(account)
+        HANDLE_DATABASE_OBJECT_FIND(account, 1, by_name, account_name)
+    //     // by_name>, account_name
+        // ordered_unique<tag<by_id>, member<account_metadata_object, account_metadata_object::id_type, &account_metadata_object::id>>,
+        // ordered_unique<tag<by_name>, member<account_metadata_object, account_name, &account_metadata_object::name>>
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(account_metadata)
+        HANDLE_DATABASE_OBJECT_FIND(account_metadata, 1, by_name, account_name)
+    //    struct by_parent;
+    //    struct by_owner;
+    //    struct by_name;
+        // by_parent
+        //     permission_object::id_type, &permission_object::parent
+        //     permission_object::id_type, &permission_object::id
+        // by_owner
+        //     account_name, &permission_object::owner
+        //     permission_name, &permission_object::name
+        // by_name
+        //     permission_name, &permission_object::name
+        //     permission_object::id_type, &permission_object::id
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission, 1, by_parent, permission_object::id_type, permission_object::id_type)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission, 2, eosio::chain::by_owner, account_name, permission_name)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission, 3, by_name, permission_name, permission_object::id_type)
+
+        // ordered_unique<tag<by_id>, member<permission_usage_object, permission_usage_object::id_type, &permission_usage_object::id>>
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission_usage)
+    //    struct by_action_name;
+    //    struct by_permission_name;
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission_link)
+    //     by_id
+    //     by_scope_primary
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(key_value)
+
+    //   by_id
+    //   by_primary
+    //   by_secondary
+
+    // by_primary>
+    //         member<index_object, table_id, &index_object::t_id>
+    //         member<index_object, uint64_t, &index_object::primary_key>
+    // by_secondary
+    //         table_id, &index_object::t_id>,
+    //         SecondaryKey, &index_object::secondary_key>,
+    //         uint64_t, &index_object::primary_key>
+        HANDLE_CONTRACT_TABLE_OBJECT_FIND(index64, uint64_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_FIND(index128, uint128_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_FIND(index256, key256_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_FIND(index_double, float64_t)
+        HANDLE_CONTRACT_TABLE_OBJECT_FIND(index_long_double, float128_t)
+
+        // ordered_unique<tag<by_id>,
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(global_property)
+        // ordered_unique<tag<by_id>,
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(dynamic_global_property)
+
+    // ordered_unique<tag<by_id>
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(block_summary)
+
+        // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_object::id_type, id)>,
+        // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_id_type, trx_id)>,
+        // ordered_unique< tag<by_expiration>,
+        // composite_key< transaction_object,
+        //      BOOST_MULTI_INDEX_MEMBER( transaction_object, time_point_sec, expiration ),
+        //      BOOST_MULTI_INDEX_MEMBER( transaction_object, transaction_object::id_type, id)
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(transaction)
+        HANDLE_DATABASE_OBJECT_FIND_BY_KEY(transaction, 1, by_trx_id, transaction_id_type);
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(transaction, 2, by_expiration, time_point_sec, transaction_object::id_type);
+
+    //    by_id
+    //    struct by_code_scope_table;
+        // ordered_unique<tag<by_id>,
+        // ordered_unique<tag<by_code_scope_table>,
+        //     member<table_id_object, account_name, &table_id_object::code>,
+        //     member<table_id_object, scope_name,   &table_id_object::scope>,
+        //     member<table_id_object, table_name,   &table_id_object::table>
+        // >
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(table_id)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(table_id, 1, by_code_scope_table, account_name, scope_name, table_name);
+
+    //    struct by_trx_id;
+    //    struct by_expiration;
+    //    struct by_delay;
+    //    struct by_sender_id;
+
+        // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(generated_transaction_object, generated_transaction_object::id_type, id)>,
+        // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, transaction_id_type, trx_id)>,
+        // ordered_unique< tag<by_expiration>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
+        // >
+        // >,
+        // ordered_unique< tag<by_delay>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
+        // >
+        // >,
+        // ordered_unique< tag<by_sender_id>,
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
+        //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(generated_transaction)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 1, by_expiration, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 2, by_delay, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 3, by_sender_id, account_name, uint128_t);
+
+    // by_id
     // by_owner
-    //     account_name, &permission_object::owner
-    //     permission_name, &permission_object::name
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits)
+
+    // by_id
+    // by_owner
+        // ordered_unique<tag<by_id>, member<resource_usage_object, resource_usage_object::id_type, &resource_usage_object::id>>,
+        // ordered_unique<tag<by_owner>, member<resource_usage_object, account_name, &resource_usage_object::owner> >
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_usage)
+        HANDLE_DATABASE_OBJECT_FIND_BY_KEY(resource_usage, 1, resource_limits::by_owner, account_name);
+
+    // by_id
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits_state)
+    // by_id
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits_config)
+
+    // by_id
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(protocol_state)
+    // by_id
     // by_name
-    //     permission_name, &permission_object::name
-    //     permission_object::id_type, &permission_object::id
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission)
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission, 1, by_parent, permission_object::id_type, permission_object::id_type)
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission, 2, eosio::chain::by_owner, account_name, permission_name)
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission, 3, by_name, permission_name, permission_object::id_type)
+        // ordered_unique<tag<by_id>, member<account_ram_correction_object, account_ram_correction_object::id_type, &account_ram_correction_object::id>>,
+        // ordered_unique<tag<by_name>, member<account_ram_correction_object, account_name, &account_ram_correction_object::name>>
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(account_ram_correction)
+        HANDLE_DATABASE_OBJECT_FIND_BY_KEY(account_ram_correction, 1, by_name, account_name)
 
-    // ordered_unique<tag<by_id>, member<permission_usage_object, permission_usage_object::id_type, &permission_usage_object::id>>
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission_usage)
-//    struct by_action_name;
-//    struct by_permission_name;
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission_link)
-//     by_id
-//     by_scope_primary
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(key_value)
+    // by_id
+    // by_code_hash
+        // ordered_unique<tag<by_id>, member<code_object, code_object::id_type, &code_object::id>>,
+        // ordered_unique<tag<by_code_hash>,
+        //     member<code_object, digest_type, &code_object::code_hash>,
+        //     member<code_object, uint8_t,     &code_object::vm_type>,
+        //     member<code_object, uint8_t,     &code_object::vm_version>
 
-//   by_id
-//   by_primary
-//   by_secondary
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(code)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(code, 1, by_code_hash, digest_type, uint8_t, uint8_t)
 
-// by_primary>
-//         member<index_object, table_id, &index_object::t_id>
-//         member<index_object, uint64_t, &index_object::primary_key>
-// by_secondary
-//         table_id, &index_object::t_id>,
-//         SecondaryKey, &index_object::secondary_key>,
-//         uint64_t, &index_object::primary_key>
-    HANDLE_CONTRACT_TABLE_OBJECT_FIND(index64, uint64_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_FIND(index128, uint128_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_FIND(index256, key256_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_FIND(index_double, float64_t)
-    HANDLE_CONTRACT_TABLE_OBJECT_FIND(index_long_double, float128_t)
-
-    // ordered_unique<tag<by_id>,
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(global_property)
-    // ordered_unique<tag<by_id>,
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(dynamic_global_property)
-
-// ordered_unique<tag<by_id>
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(block_summary)
-
-    // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_object::id_type, id)>,
-    // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_id_type, trx_id)>,
-    // ordered_unique< tag<by_expiration>,
-    // composite_key< transaction_object,
-    //      BOOST_MULTI_INDEX_MEMBER( transaction_object, time_point_sec, expiration ),
-    //      BOOST_MULTI_INDEX_MEMBER( transaction_object, transaction_object::id_type, id)
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(transaction)
-    HANDLE_DATABASE_OBJECT_FIND_BY_KEY(transaction, 1, by_trx_id, transaction_id_type);
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(transaction, 2, by_expiration, time_point_sec, transaction_object::id_type);
-
-//    by_id
-//    struct by_code_scope_table;
-    // ordered_unique<tag<by_id>,
-    // ordered_unique<tag<by_code_scope_table>,
-    //     member<table_id_object, account_name, &table_id_object::code>,
-    //     member<table_id_object, scope_name,   &table_id_object::scope>,
-    //     member<table_id_object, table_name,   &table_id_object::table>
-    // >
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(table_id)
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(table_id, 1, by_code_scope_table, account_name, scope_name, table_name);
-
-//    struct by_trx_id;
-//    struct by_expiration;
-//    struct by_delay;
-//    struct by_sender_id;
-
-    // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(generated_transaction_object, generated_transaction_object::id_type, id)>,
-    // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, transaction_id_type, trx_id)>,
-    // ordered_unique< tag<by_expiration>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-    // >
-    // >,
-    // ordered_unique< tag<by_delay>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-    // >
-    // >,
-    // ordered_unique< tag<by_sender_id>,
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
-    //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(generated_transaction)
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 1, by_expiration, time_point, generated_transaction_object::id_type);
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 2, by_delay, time_point, generated_transaction_object::id_type);
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 3, by_sender_id, account_name, uint128_t);
-
-// by_id
-// by_owner
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits)
-
-// by_id
-// by_owner
-    // ordered_unique<tag<by_id>, member<resource_usage_object, resource_usage_object::id_type, &resource_usage_object::id>>,
-    // ordered_unique<tag<by_owner>, member<resource_usage_object, account_name, &resource_usage_object::owner> >
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_usage)
-    HANDLE_DATABASE_OBJECT_FIND_BY_KEY(resource_usage, 1, resource_limits::by_owner, account_name);
-
-// by_id
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits_state)
-// by_id
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits_config)
-
-// by_id
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(protocol_state)
-// by_id
-// by_name
-    // ordered_unique<tag<by_id>, member<account_ram_correction_object, account_ram_correction_object::id_type, &account_ram_correction_object::id>>,
-    // ordered_unique<tag<by_name>, member<account_ram_correction_object, account_name, &account_ram_correction_object::name>>
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(account_ram_correction)
-    HANDLE_DATABASE_OBJECT_FIND_BY_KEY(account_ram_correction, 1, by_name, account_name)
-
-// by_id
-// by_code_hash
-    // ordered_unique<tag<by_id>, member<code_object, code_object::id_type, &code_object::id>>,
-    // ordered_unique<tag<by_code_hash>,
-    //     member<code_object, digest_type, &code_object::code_hash>,
-    //     member<code_object, uint8_t,     &code_object::vm_type>,
-    //     member<code_object, uint8_t,     &code_object::vm_version>
-
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(code)
-    HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(code, 1, by_code_hash, digest_type, uint8_t, uint8_t)
-
-// by_id
-    HANDLE_DATABASE_OBJECT_FIND_BY_ID(database_header)
-    return 1;
+    // by_id
+        HANDLE_DATABASE_OBJECT_FIND_BY_ID(database_header)
+        return 1;
+    } CATCH_AND_LOG_EXCEPTION();
+    return -2;
 }
