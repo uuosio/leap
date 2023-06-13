@@ -18,6 +18,10 @@ namespace eosio {
     }
 }
 
+namespace chainbase {
+    class database;
+}
+
 typedef int (*fn_native_apply)(uint64_t a, uint64_t b, uint64_t c);
 typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
 
@@ -36,6 +40,7 @@ class chain_proxy {
         virtual int attach(eosio::chain::controller* c);
 
         virtual eosio::chain::controller* chain();
+        virtual const chainbase::database* get_database();
         virtual chain_rpc_api_proxy* api_proxy();
 
         virtual void say_hello();

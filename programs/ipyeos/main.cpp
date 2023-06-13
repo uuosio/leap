@@ -130,16 +130,41 @@ void *eos_post(void * (*fn)(void *), void *params) {
    return future.get();
 }
 
+eos_cb::eos_cb() {
+
+}
+
+eos_cb::~eos_cb() {
+
+}
+
+int eos_cb::init(int argc, char** argv) {
+   return eos_init(argc, argv);
+}
+
+int eos_cb::exec() {
+   return eos_exec();
+}
+
+int eos_cb::exec_once() {
+   return eos_exec_once();
+}
+
+void eos_cb::quit() {
+   app_quit();
+}
+
+void* eos_cb::post(void* (*fn)(void *), void *args) {
+   eos_post(fn, args);
+}
+
+void *eos_cb::get_database() {
+   return (void *)&app().get_plugin<eosio::chain_plugin>().chain().db();
+}
+
 int main(int argc, char** argv)
 {
-   eos_cb cb = {
-      .init = eos_init,
-      .exec = eos_exec,
-      .exec_once = eos_exec_once,
-      .quit = app_quit,
-      .post = eos_post,
-   };
-
+   eos_cb *cb = new eos_cb();
    ipyeos_init_chain(cb);
    init_new_chain_api();
    return start_python(argc, argv);

@@ -31,11 +31,12 @@ string& ipyeos_proxy::get_last_error() {
     return ::get_last_error();
 }
 
-void ipyeos_proxy::set_last_error(string& error) {
+void ipyeos_proxy::set_last_error(string& error) {    
     ::set_last_error(error);
 }
 
-ipyeos_proxy::ipyeos_proxy() {
+ipyeos_proxy::ipyeos_proxy(eos_cb *cb) {
+    this->cb = cb;
     this->_apply_context_proxy = std::make_shared<apply_context_proxy>();
 }
 
@@ -48,6 +49,10 @@ apply_context_proxy *ipyeos_proxy::get_apply_context_proxy() {
 
 vm_api_proxy *ipyeos_proxy::get_vm_api_proxy() {
     return _apply_context_proxy->get_vm_api_proxy();
+}
+
+database_proxy *ipyeos_proxy::new_database_proxy(void *db) {
+    return new database_proxy(db);
 }
 
 chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir) {

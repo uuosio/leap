@@ -133,6 +133,7 @@ add_library( eosio_chain
               chain_api/native_object.cpp
               chain_api/ipyeos.cpp
               chain_api/apply_context_proxy.cpp
+              chain_api/database_proxy.cpp
 
              ${CHAIN_EOSVMOC_SOURCES}
              ${CHAIN_EOSVM_SOURCES}

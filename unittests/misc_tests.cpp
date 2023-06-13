@@ -1265,6 +1265,55 @@ BOOST_AUTO_TEST_CASE(public_key_from_hash) {
    ilog( "public key with no known private key: ${k}", ("k", eos_unknown_pk) );
 }
 
+template<std::size_t I = 0, typename... Tp>
+inline typename std::enable_if<I == sizeof...(Tp), void>::type
+unpack_tuple(fc::datastream<const char*>& binary, const std::tuple<Tp...>& t)
+{ }
+
+template<std::size_t I = 0, typename... Tp>
+inline typename std::enable_if<I < sizeof...(Tp), void>::type
+unpack_tuple(fc::datastream<const char*>& binary, const std::tuple<Tp...>& t)
+{
+   fc::raw::unpack(binary, std::get<I>(t));
+    unpack_tuple<I + 1, Tp...>(binary, t);
+}
+
+BOOST_AUTO_TEST_CASE(test_unpack_tuple) {
+   vector<char> v;
+   v.resize(32+1+1);
+   v[32] = 3;
+   v[33] = 4;
+   // fc::raw::unpack<std::tuple<digest_type, uint8_t, uint8_t>>(v);
+   fc::datastream<const char*> binary(v.data(), v.size());
+
+   digest_type digest;
+   uint8_t vm_type;
+   uint8_t vm_version;
+
+   fc::raw::unpack(binary, digest);
+   fc::raw::unpack(binary, vm_type);
+   fc::raw::unpack(binary, vm_version);
+
+   FC_ASSERT(vm_type == 3, "bad value");
+   FC_ASSERT(vm_version == 4, "bad value");
+
+   binary.seekp(0);
+   std::tuple<digest_type, uint8_t, uint8_t> lower_bound;
+   elog("+++++++tuple_size: ${n}", ("n", std::tuple_size<decltype(lower_bound)>::value));
+   FC_ASSERT(std::tuple_size<decltype(lower_bound)>::value == 3, "bad tuple size");
+
+   fc::raw::unpack(binary, std::get<0>(lower_bound));
+   fc::raw::unpack(binary, std::get<1>(lower_bound));
+   fc::raw::unpack(binary, std::get<2>(lower_bound));
+   FC_ASSERT(std::get<1>(lower_bound) == 3, "bad value");
+   FC_ASSERT(std::get<2>(lower_bound) == 4, "bad value");
+
+   binary.seekp(0);
+   unpack_tuple(binary, lower_bound);
+   FC_ASSERT(std::get<1>(lower_bound) == 3, "bad value");
+   FC_ASSERT(std::get<2>(lower_bound) == 4, "bad value");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace eosio

@@ -45,6 +45,10 @@ controller* chain_proxy::chain() {
     return this->c.get();
 }
 
+const chainbase::database* chain_proxy::get_database() {
+    return &this->c->db();
+}
+
 chain_rpc_api_proxy* chain_proxy::api_proxy() {
     return this->_api_proxy.get();
 }
