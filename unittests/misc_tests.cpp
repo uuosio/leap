@@ -1267,16 +1267,20 @@ BOOST_AUTO_TEST_CASE(public_key_from_hash) {
 
 template<std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type
-unpack_tuple(fc::datastream<const char*>& binary, const std::tuple<Tp...>& t)
+unpack_tuple(fc::datastream<const char*>& binary, std::tuple<Tp...>& t)
 { }
 
 template<std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I < sizeof...(Tp), void>::type
-unpack_tuple(fc::datastream<const char*>& binary, const std::tuple<Tp...>& t)
+unpack_tuple(fc::datastream<const char*>& binary, std::tuple<Tp...>& t)
 {
    fc::raw::unpack(binary, std::get<I>(t));
-    unpack_tuple<I + 1, Tp...>(binary, t);
+   unpack_tuple<I + 1, Tp...>(binary, t);
 }
+
+#define UNPACK_COMPOSITE_KEY(OBJECT_NAME, ...) \
+   std::tuple<__VA_ARGS__> key; \
+   unpack_tuple(binary, key);
 
 BOOST_AUTO_TEST_CASE(test_unpack_tuple) {
    vector<char> v;
@@ -1311,7 +1315,18 @@ BOOST_AUTO_TEST_CASE(test_unpack_tuple) {
    binary.seekp(0);
    unpack_tuple(binary, lower_bound);
    FC_ASSERT(std::get<1>(lower_bound) == 3, "bad value");
-   FC_ASSERT(std::get<2>(lower_bound) == 4, "bad value");
+   FC_ASSERT(std::get<2>(lower_bound) == 4, "bad value");   
+
+   {
+      binary.seekp(0);
+      UNPACK_COMPOSITE_KEY(1, digest_type, uint8_t, uint8_t)
+      FC_ASSERT(std::get<1>(key) == 3, "bad value");
+      FC_ASSERT(std::get<2>(key) == 4, "bad value");
+
+      // UNPACK_COMPOSITE_KEY(1, uint8_t, uint8_t)
+      // FC_ASSERT(std::get<0>(key) == 0, "bad value");
+      // FC_ASSERT(std::get<1>(key) == 0, "bad value");
+   }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
