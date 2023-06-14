@@ -167,7 +167,7 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
     //    struct by_parent;
     //    struct by_owner;
     //    struct by_name;
-        HANDLE_DATABASE_OBJECT_WALK(permission, (by_id)(by_name))
+        HANDLE_DATABASE_OBJECT_WALK(permission, (by_id)(by_parent)(eosio::chain::by_owner)(by_name))
         HANDLE_DATABASE_OBJECT_WALK(permission_usage, (by_id))
     //    struct by_action_name;
     //    struct by_permission_name;
@@ -233,6 +233,8 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
     // by_code_hash
         HANDLE_DATABASE_OBJECT_WALK(code, (by_id))
         HANDLE_DATABASE_OBJECT_WALK_EX(database_header, (by_id))
+
+        FC_ASSERT(0, "unhandled walk request: ${tp} ${pos}", ("tp", tp)("pos", index_position));
 
     } CATCH_AND_LOG_EXCEPTION();
 
@@ -336,7 +338,6 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         if (index_position == 0) { \
             return database_object_walk_range_by_id_type<OBJECT_NAME##_object_type, OBJECT_INDEX, OBJECT_NAME##_object::id_type>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
         } \
-        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX: invalid index position"); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(OBJECT_NAME) \
@@ -344,27 +345,18 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
 
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, KEY_TYPE) \
-    if (OBJECT_NAME##_object_type == tp) { \
-        if (index_position == INDEX_POSITION) { \
-            return database_object_walk_range<OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, KEY_TYPE>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
-        } \
-        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE: invalid index position"); \
+    if (OBJECT_NAME##_object_type == tp && index_position == INDEX_POSITION) { \
+        return database_object_walk_range<OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, KEY_TYPE>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(OBJECT_NAME, OBJECT_INDEX, INDEX_POSITION, INDEX_NAME, KEY_TYPE) \
-    if (OBJECT_NAME##_object_type == tp) { \
-        if (index_position == INDEX_POSITION) { \
-            return database_object_walk_range<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, KEY_TYPE>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
-        } \
-        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX: invalid index position"); \
+    if (OBJECT_NAME##_object_type == tp && index_position == INDEX_POSITION) { \
+        return database_object_walk_range<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, KEY_TYPE>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(OBJECT_NAME, OBJECT_INDEX, INDEX_POSITION, INDEX_NAME, ...) \
-    if (OBJECT_NAME##_object_type == tp) { \
-        if (index_position == INDEX_POSITION) { \
-            return database_object_walk_range_by_composite_key<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, __VA_ARGS__>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
-        } \
-        FC_ASSERT(0, "HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY: invalid index position"); \
+    if (OBJECT_NAME##_object_type == tp && index_position == INDEX_POSITION) { \
+        return database_object_walk_range_by_composite_key<OBJECT_NAME##_object_type, OBJECT_INDEX, INDEX_NAME, __VA_ARGS__>(db, lower_bound_stream, upper_bound_stream, handler, custom_data); \
     }
 
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, ...) \
@@ -533,7 +525,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
 
     // by_id
         HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(database_header, database_header_multi_index)
-        return 1;
+        FC_ASSERT(0, "unhandled walk range request: ${tp} ${pos}", ("tp", tp)("pos", index_position));
     } CATCH_AND_LOG_EXCEPTION();
     return -2;
 }
@@ -1052,7 +1044,9 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
 
     // by_id
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID_EX(database_header)
-        return 1;
+
+        FC_ASSERT(0, "unhandled bound: ${bound_type} ${tp} ${pos}", ("bound_type", bound_type)("tp", tp)("pos", index_position));
+
     } CATCH_AND_LOG_EXCEPTION();
     return -2;
 }
@@ -1075,4 +1069,43 @@ int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position
     *out = find_buffer.data();
     *out_size = find_buffer.size();
     return 1;
+}
+
+#define DATABASE_OBJECT_ROW_COUNT_EX(OBJECT_NAME, OBJECT_INDEX) \
+    if (tp == OBJECT_NAME##_object_type) { \
+        return db.get_index<OBJECT_INDEX>().indices().size(); \
+    }
+
+#define DATABASE_OBJECT_ROW_COUNT(OBJECT_NAME) \
+    DATABASE_OBJECT_ROW_COUNT_EX(OBJECT_NAME, OBJECT_NAME##_index)
+
+uint64_t database_proxy::row_count(void *_db, int32_t tp) {
+    auto& db = *static_cast<chainbase::database *>(_db);
+
+    DATABASE_OBJECT_ROW_COUNT(account)
+    DATABASE_OBJECT_ROW_COUNT(account_metadata)
+    DATABASE_OBJECT_ROW_COUNT(permission)
+    DATABASE_OBJECT_ROW_COUNT(permission_usage)
+    DATABASE_OBJECT_ROW_COUNT(permission_link)
+    DATABASE_OBJECT_ROW_COUNT(key_value)
+    DATABASE_OBJECT_ROW_COUNT(index64)
+    DATABASE_OBJECT_ROW_COUNT(index128)
+    DATABASE_OBJECT_ROW_COUNT(index256)
+    DATABASE_OBJECT_ROW_COUNT(index_double)
+    DATABASE_OBJECT_ROW_COUNT(index_long_double)
+    DATABASE_OBJECT_ROW_COUNT_EX(global_property, global_property_multi_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(dynamic_global_property, dynamic_global_property_multi_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(block_summary, block_summary_multi_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(transaction, transaction_multi_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(generated_transaction, generated_transaction_multi_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(table_id, table_id_multi_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(resource_limits, resource_limits::resource_limits_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(resource_usage, resource_limits::resource_usage_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(resource_limits_state, resource_limits::resource_limits_state_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(resource_limits_config, resource_limits::resource_limits_config_index)
+    DATABASE_OBJECT_ROW_COUNT_EX(protocol_state, protocol_state_multi_index)
+    DATABASE_OBJECT_ROW_COUNT(account_ram_correction)
+    DATABASE_OBJECT_ROW_COUNT(code)
+    DATABASE_OBJECT_ROW_COUNT_EX(database_header, database_header_multi_index)
+    return -2;
 }
