@@ -95,9 +95,11 @@ void ipyeos_proxy::unpack_native_object(int type, string& packed_obj, string& re
     unpack_native_object_(type, packed_obj, result);
 }
 
-
 uint64_t ipyeos_proxy::s2n(string& s) {
-    return eosio::chain::name(s).to_uint64_t();
+    try {
+        return eosio::chain::name(s).to_uint64_t();
+    } CATCH_AND_LOG_EXCEPTION();
+    return 0;
 }
 
 string ipyeos_proxy::n2s(uint64_t n) {
