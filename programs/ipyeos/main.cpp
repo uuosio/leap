@@ -155,7 +155,7 @@ void eos_cb::quit() {
 }
 
 void* eos_cb::post(void* (*fn)(void *), void *args) {
-   eos_post(fn, args);
+   return eos_post(fn, args);
 }
 
 void *eos_cb::get_database() {
