@@ -171,7 +171,7 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
         HANDLE_DATABASE_OBJECT_WALK(permission_usage, (by_id))
     //    struct by_action_name;
     //    struct by_permission_name;
-        HANDLE_DATABASE_OBJECT_WALK(permission_link, (by_id)(by_action_name))
+        HANDLE_DATABASE_OBJECT_WALK(permission_link, (by_id)(by_action_name)(by_permission_name))
     //     by_id
     //     by_scope_primary
         HANDLE_DATABASE_OBJECT_WALK(key_value, (by_id)(by_scope_primary))
@@ -658,9 +658,24 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
     //    struct by_action_name;
     //    struct by_permission_name;
         HANDLE_DATABASE_OBJECT_FIND_BY_ID(permission_link)
+    // ordered_unique<tag<by_action_name>,
+    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
+    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, code),
+    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, action_name, message_type)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission_link, 1, by_action_name, account_name, account_name, account_name)
+    // ordered_unique<tag<by_permission_name>,
+    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
+    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_name, required_permission),
+    //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_link_object::id_type, id)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(permission_link, 2, by_permission_name, account_name, permission_name, permission_link_object::id_type)
+
     //     by_id
     //     by_scope_primary
         HANDLE_DATABASE_OBJECT_FIND_BY_ID(key_value)
+    //  ordered_unique<tag<by_scope_primary>,
+    //        member<key_value_object, table_id, &key_value_object::t_id>,
+    //        member<key_value_object, uint64_t, &key_value_object::primary_key>
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(key_value, 1, by_scope_primary, table_id, uint64_t)
 
     //   by_id
     //   by_primary
@@ -690,7 +705,6 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
         // ordered_unique< tag<by_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_object::id_type, id)>,
         // ordered_unique< tag<by_trx_id>, BOOST_MULTI_INDEX_MEMBER(transaction_object, transaction_id_type, trx_id)>,
         // ordered_unique< tag<by_expiration>,
-        // composite_key< transaction_object,
         //      BOOST_MULTI_INDEX_MEMBER( transaction_object, time_point_sec, expiration ),
         //      BOOST_MULTI_INDEX_MEMBER( transaction_object, transaction_object::id_type, id)
         HANDLE_DATABASE_OBJECT_FIND_BY_ID(transaction)
@@ -718,13 +732,9 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
         // ordered_unique< tag<by_expiration>,
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, expiration),
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-        // >
-        // >,
         // ordered_unique< tag<by_delay>,
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, time_point, delay_until),
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, generated_transaction_object::id_type, id)
-        // >
-        // >,
         // ordered_unique< tag<by_sender_id>,
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
@@ -736,6 +746,10 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
     // by_id
     // by_owner
         HANDLE_DATABASE_OBJECT_FIND_BY_ID(resource_limits)
+    //  ordered_unique<tag<by_owner>,
+    //        BOOST_MULTI_INDEX_MEMBER(resource_limits_object, bool, pending),
+    //        BOOST_MULTI_INDEX_MEMBER(resource_limits_object, account_name, owner)
+        HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(resource_limits, 1, resource_limits::by_owner, bool, account_name);
 
     // by_id
     // by_owner
