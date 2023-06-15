@@ -38,6 +38,77 @@ unpack_tuple(fc::datastream<const char*>& binary, std::tuple<Tp...>& t)
     unpack_tuple<I + 1, Tp...>(binary, t);
 }
 
+template<typename database_object_type>
+
+vector<char> pack_database_object(const database_object_type& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 8);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+vector<char> pack_database_object<key_value_object>(const key_value_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 16);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.t_id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+vector<char> pack_database_object<index64_object>(const index64_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 16);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    elog("+++++++++pack_database_object<index64_object>: ${n}", ("n", obj.id));
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.t_id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+vector<char> pack_database_object<index128_object>(const index128_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 16);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.t_id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+vector<char> pack_database_object<index256_object>(const index256_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 16);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.t_id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+vector<char> pack_database_object<index_double_object>(const index_double_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 16);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.t_id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+vector<char> pack_database_object<index_long_double_object>(const index_long_double_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 16);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.t_id);
+    fc::raw::pack(ds, obj);
+    return vec;
+}
+
 void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data) {
     this->handler = handler;
     this->custom_data = custom_data;
@@ -50,8 +121,8 @@ int32_t database_object_walk(chainbase::database& db, fn_data_handler handler, v
     const auto& first = idx.begin();
     const auto& last = idx.end();
     for (auto itr = first; itr != last; ++itr) {
-        vector<char> data = fc::raw::pack(*itr);
-        auto ret = handler(object_type, itr->id._id, data.data(), data.size(), custom_data);
+        vector<char> data = pack_database_object(*itr);
+        auto ret = handler(object_type, data.data(), data.size(), custom_data);
         if (!ret) {
             return ret;
         }
@@ -252,8 +323,8 @@ int32_t database_object_walk_range_by_id_type(chainbase::database& db, fc::datas
     auto begin_itr = idx.lower_bound(lower_bound);
     auto end_itr = idx.lower_bound(upper_bound);
     for (auto itr = begin_itr; itr != end_itr; ++itr) {
-        vector<char> data = fc::raw::pack(*itr);
-        auto ret = handler(tp, itr->id._id, data.data(), data.size(), custom_data);
+        vector<char> data = pack_database_object(*itr);
+        auto ret = handler(tp, data.data(), data.size(), custom_data);
         if (!ret) {
             return ret;
         }
@@ -272,8 +343,8 @@ int32_t database_object_walk_range(chainbase::database& db, fc::datastream<const
     auto begin_itr = idx.lower_bound(lower_bound);
     auto end_itr = idx.lower_bound(upper_bound);
     for (auto itr = begin_itr; itr != end_itr; ++itr) {
-        vector<char> data = fc::raw::pack(*itr);
-        auto ret = handler(tp, itr->id._id, data.data(), data.size(), custom_data);
+        vector<char> data = pack_database_object(*itr);
+        auto ret = handler(tp, data.data(), data.size(), custom_data);
         if (!ret) {
             return ret;
         }
@@ -292,8 +363,8 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
     auto begin_itr = idx.lower_bound(lower_bound);
     auto end_itr = idx.lower_bound(upper_bound);
     for (auto itr = begin_itr; itr != end_itr; ++itr) {
-        vector<char> data = fc::raw::pack(*itr);
-        auto ret = handler(tp, itr->id._id, data.data(), data.size(), custom_data);
+        vector<char> data = pack_database_object(*itr);
+        auto ret = handler(tp, data.data(), data.size(), custom_data);
         if (!ret) {
             return ret;
         }
@@ -311,8 +382,8 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
         auto begin_itr = idx.lower_bound(lower_bound); \
         auto end_itr = idx.lower_bound(upper_bound); \
         for (auto itr = begin_itr; itr != end_itr; ++itr) { \
-            vector<char> data = fc::raw::pack(*itr); \
-            auto ret = this->handler(tp, itr->id._id, data.data(), data.size(), this->custom_data); \
+            vector<char> data = pack_database_object(*itr); \
+            auto ret = this->handler(tp, data.data(), data.size(), this->custom_data); \
             if (!ret) { \
                 return ret; \
             } \
@@ -539,7 +610,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = fc::raw::pack(*obj); \
+        find_buffer = pack_database_object(*obj); \
         *out = find_buffer.data(); \
         *out_size = find_buffer.size(); \
         return 1; \
@@ -553,7 +624,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = fc::raw::pack(*obj); \
+        find_buffer = pack_database_object(*obj); \
         *out = find_buffer.data(); \
         *out_size = find_buffer.size(); \
         return 1; \
@@ -567,7 +638,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = fc::raw::pack(*obj); \
+        find_buffer = pack_database_object(*obj); \
         *out = find_buffer.data(); \
         *out_size = find_buffer.size(); \
         return 1; \
@@ -581,7 +652,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = fc::raw::pack(*obj); \
+        find_buffer = pack_database_object(*obj); \
         *out = find_buffer.data(); \
         *out_size = find_buffer.size(); \
         return 1; \
@@ -790,7 +861,6 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
     return -2;
 }
 
-
 // bound by id_type
 template<int bound_type, int tp, typename object_index, typename object_id_type>
 vector<char> database_object_bound_by_id_type(chainbase::database& db, fc::datastream<const char*>& key_stream) {
@@ -800,12 +870,12 @@ vector<char> database_object_bound_by_id_type(chainbase::database& db, fc::datas
     if (bound_type == 0) {
         auto itr = idx.lower_bound(bound);
         if (itr != idx.end()) {
-            return fc::raw::pack(*itr);
+            return pack_database_object(*itr);
         }
     } else {
         auto itr = idx.upper_bound(bound);
         if (itr != idx.end()) {
-            return fc::raw::pack(*itr);
+            return pack_database_object(*itr);
         }
     }
     return vector<char>();
@@ -820,12 +890,12 @@ vector<char> database_object_bound(chainbase::database& db, fc::datastream<const
     if (bound_type == 0) {
         auto itr = idx.lower_bound(bound);
         if (itr != idx.end()) {
-            return fc::raw::pack(*itr);
+            return pack_database_object(*itr);
         }
     } else {
         auto itr = idx.upper_bound(bound);
         if (itr != idx.end()) {
-            return fc::raw::pack(*itr);
+            return pack_database_object(*itr);
         }
     }
     return vector<char>();
@@ -840,12 +910,12 @@ vector<char> database_object_bound_by_composite_key(chainbase::database& db, fc:
     if (bound_type == 0) {
         auto itr = idx.lower_bound(bound);
         if (itr != idx.end()) {
-            return fc::raw::pack(*itr);
+            return pack_database_object(*itr);
         }
     } else {
         auto itr = idx.upper_bound(bound);
         if (itr != idx.end()) {
-            return fc::raw::pack(*itr);
+            return pack_database_object(*itr);
         }
     }
     return vector<char>();
@@ -948,6 +1018,10 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
     //     by_id
     //     by_scope_primary
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID(key_value)
+    // ordered_unique<tag<by_scope_primary>,
+    //     member<key_value_object, table_id, &key_value_object::t_id>,
+    //     member<key_value_object, uint64_t, &key_value_object::primary_key>
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY(key_value, 1, by_scope_primary, table_id, uint64_t)
 
     //   by_id
     //   by_primary

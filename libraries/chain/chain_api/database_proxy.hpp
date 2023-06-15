@@ -7,7 +7,7 @@ namespace chainbase {
     class database;
 }
 
-typedef int32_t (*fn_data_handler)(int32_t tp, int64_t id, char *data, size_t size, void* custom_data);
+typedef int32_t (*fn_data_handler)(int32_t tp, char *data, size_t size, void* custom_data);
 
 class database_proxy {
 public:
