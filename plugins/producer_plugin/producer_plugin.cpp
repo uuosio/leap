@@ -70,6 +70,12 @@ using boost::signals2::scoped_connection;
 const std::string logger_name("producer_plugin");
 fc::logger _log;
 
+namespace eosio {
+   fc::logger& get_producer_plugin_logger() {
+      return _log;
+   }
+}
+
 const std::string trx_successful_trace_logger_name("transaction_success_tracing");
 fc::logger       _trx_successful_trace_log;
 

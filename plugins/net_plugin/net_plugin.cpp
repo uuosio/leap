@@ -66,6 +66,10 @@ namespace eosio {
    fc::logger logger;
    std::string peer_log_format;
 
+   fc::logger& get_net_plugin_logger() {
+      return logger;
+   }
+
    template <typename Strand>
    void verify_strand_in_this_thread(const Strand& strand, const char* func, int line) {
       if( !strand.running_in_this_thread() ) {

@@ -56,10 +56,13 @@ database_proxy *ipyeos_proxy::new_database_proxy() {
 }
 
 chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir) {
-    chain_proxy *proxy = new chain_proxy();
-    proxy->init(config, _genesis, protocol_features_dir, snapshot_dir);
-    chain_proxy_map[proxy->chain()] = proxy;
-    return proxy;
+    try {
+        chain_proxy *proxy = new chain_proxy();
+        proxy->init(config, _genesis, protocol_features_dir, snapshot_dir);
+        chain_proxy_map[proxy->chain()] = proxy;
+        return proxy;
+    } CATCH_AND_LOG_EXCEPTION();
+    return nullptr;
 }
 
 void ipyeos_proxy::chain_free(chain_proxy* c) {
@@ -73,10 +76,6 @@ void ipyeos_proxy::chain_free(chain_proxy* c) {
         }
         delete c;
     } CATCH_AND_LOG_EXCEPTION();
-}
-
-void ipyeos_proxy::set_log_level(string& logger_name, int level) {
-    fc::logger::get(logger_name).set_log_level(fc::log_level(level));
 }
 
 void ipyeos_proxy::pack_abi(string& abi, vector<char>& packed_obj)

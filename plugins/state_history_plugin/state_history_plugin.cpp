@@ -34,6 +34,10 @@ static auto _state_history_plugin = application::register_plugin<state_history_p
 const std::string logger_name("state_history");
 fc::logger        _log;
 
+fc::logger& get_state_history_logger() {
+   return _log;
+}
+
 template <typename F>
 auto catch_and_log(F f) {
    try {

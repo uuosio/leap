@@ -15,12 +15,35 @@
 #include <boost/dll/runtime_symbol_info.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 
-#include "config.hpp"
+#include <future>
 
+#include "config.hpp"
 #include "ipyeos.hpp"
 
 using namespace appbase;
 using namespace eosio;
+
+
+enum return_codes {
+   OTHER_FAIL        = -2,
+   INITIALIZE_FAIL   = -1,
+   SUCCESS           = 0,
+   BAD_ALLOC         = 1,
+   DATABASE_DIRTY    = 2,
+   FIXED_REVERSIBLE  = SUCCESS,
+   EXTRACTED_GENESIS = SUCCESS,
+   NODE_MANAGEMENT_SUCCESS = 5
+};
+
+
+namespace eosio {
+   fc::logger& get_net_plugin_logger(); // net_plugin_impl
+   fc::logger& get_http_plugin_logger(); // http_plugin
+   fc::logger& get_producer_plugin_logger();// producer_plugin
+
+   fc::logger& get_trace_api_logger();// trace_api
+   fc::logger& get_state_history_logger();// state_history
+}
 
 namespace detail {
 
@@ -96,17 +119,6 @@ void initialize_logging()
    app().set_sighup_callback(logging_conf_handler);
 }
 
-enum return_codes {
-   OTHER_FAIL        = -2,
-   INITIALIZE_FAIL   = -1,
-   SUCCESS           = 0,
-   BAD_ALLOC         = 1,
-   DATABASE_DIRTY    = 2,
-   FIXED_REVERSIBLE  = SUCCESS,
-   EXTRACTED_GENESIS = SUCCESS,
-   NODE_MANAGEMENT_SUCCESS = 5
-};
-
 extern "C" int start_python(int argc, char **argv);
 extern "C" void init_new_chain_api();
 int eos_init(int argc, char** argv);
@@ -116,8 +128,6 @@ int eos_exec_once();
 void app_quit() {
     appbase::app().quit();
 }
-
-#include <future>
 
 void *eos_post(void * (*fn)(void *), void *params) {
    std::promise<void *> promise;
@@ -160,6 +170,38 @@ void* eos_cb::post(void* (*fn)(void *), void *args) {
 
 void *eos_cb::get_database() {
    return (void *)&app().get_plugin<eosio::chain_plugin>().chain().db();
+}
+
+void eos_cb::set_log_level(string& logger_name, int level) {
+   if (logger_name == "net_plugin_impl") {
+      eosio::get_net_plugin_logger().set_log_level(fc::log_level(level));
+   } else if (logger_name == "http_plugin") {
+      eosio::get_http_plugin_logger().set_log_level(fc::log_level(level)); 
+   } else if (logger_name == "producer_plugin") {
+      eosio::get_producer_plugin_logger().set_log_level(fc::log_level(level));
+   } else if (logger_name == "trace_api") {
+      eosio::get_trace_api_logger().set_log_level(fc::log_level(level));
+   } else if (logger_name == "state_history") {
+      eosio::get_state_history_logger().set_log_level(fc::log_level(level));
+   } else {
+      fc::logger::get(logger_name).set_log_level(fc::log_level(level));
+   }
+}
+
+int eos_cb::get_log_level(string& logger_name) {
+   if (logger_name == "net_plugin_impl") {
+      return eosio::get_net_plugin_logger().get_log_level();
+   } else if (logger_name == "http_plugin") {
+      return eosio::get_http_plugin_logger().get_log_level();
+   } else if (logger_name == "producer_plugin") {
+      return eosio::get_producer_plugin_logger().get_log_level();
+   } else if (logger_name == "trace_api") {
+      return eosio::get_trace_api_logger().get_log_level();
+   } else if (logger_name == "state_history") {
+      return eosio::get_state_history_logger().get_log_level();
+   } else {
+      return fc::logger::get(logger_name).get_log_level();
+   }
 }
 
 int main(int argc, char** argv)

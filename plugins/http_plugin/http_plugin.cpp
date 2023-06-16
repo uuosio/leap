@@ -23,6 +23,10 @@ namespace eosio {
       }
    }
 
+   fc::logger& get_http_plugin_logger() {
+      return logger();
+   }
+
    static auto _http_plugin = application::register_plugin<http_plugin>();
 
    using std::vector;

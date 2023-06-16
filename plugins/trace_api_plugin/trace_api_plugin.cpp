@@ -97,6 +97,10 @@ namespace {
 
 namespace eosio {
 
+   fc::logger& get_trace_api_logger() {// trace_api
+      return _log;
+   }
+
 /**
  * A common source for information shared between the extraction process and the RPC process
  */
