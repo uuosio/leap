@@ -44,12 +44,7 @@ jobs:
           ninja
       - name: Release
         run: |
-          mkdir -p release/bin
-          mkdir -p release/lib
-          cp build/programs/ipyeos/ipyeos release/bin/ipyeos
-          cp build/libraries/chain_api/libchain_api.dylib release/lib/libchain_api.dylib
-          cp build/libraries/vm_api/libvm_api.dylib release/lib/libvm_api.dylib
-          tar -czf release-macos.tar.gz release
+          ./release.sh
       - name: release-pyeos
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
