@@ -22,5 +22,6 @@ enum {
 
     genesis_state_type,           // 11
     abi_def_type,                 // 12
-    transaction_type              // 13
+    transaction_type,              // 13
+    global_property_type   // 14
 };

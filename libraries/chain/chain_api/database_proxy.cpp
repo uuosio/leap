@@ -138,7 +138,7 @@ int32_t database_object_walk(chainbase::database& db, fn_data_handler handler, v
 #define HANDLE_DATABASE_OBJECT_WALK(OBJECT_NAME, INDEX_NAMES) \
     if (OBJECT_NAME##_object_type == tp) { \
         BOOST_PP_SEQ_FOR_EACH_I(GENERATE_DB_WALK, OBJECT_NAME, INDEX_NAMES) \
-        FC_ASSERT(0, "index position out of range"); \
+        FC_ASSERT(0, "index position out of range ${index_position}", ("index_position", index_position)); \
     }
 
 #define GENERATE_DB_WALK_EX(r, OBJECT_NAME, i, INDEX_NAME) \
@@ -258,7 +258,11 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
         HANDLE_DATABASE_OBJECT_WALK_EX(global_property, (by_id))
         HANDLE_DATABASE_OBJECT_WALK_EX(dynamic_global_property, (by_id))
         HANDLE_DATABASE_OBJECT_WALK_EX(block_summary, (by_id))
-        HANDLE_DATABASE_OBJECT_WALK_EX(transaction, (by_id))
+
+        //by_trx_id
+        //by_expiration
+        HANDLE_DATABASE_OBJECT_WALK_EX(transaction, (by_id)(by_trx_id)(by_expiration))
+
     //    by_id
     //    struct by_code_scope_table;
         HANDLE_DATABASE_OBJECT_WALK_EX(table_id, (by_id)(by_code_scope_table))
@@ -293,7 +297,8 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
     // by_owner
         HANDLE_DATABASE_OBJECT_WALK_RESOURCE_LIMITS(resource_usage, (by_id)(resource_limits::by_owner))
 
-        HANDLE_DATABASE_OBJECT_WALK_RESOURCE_LIMITS(resource_limits, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK_RESOURCE_LIMITS(resource_limits_state, (by_id))
+
         HANDLE_DATABASE_OBJECT_WALK_RESOURCE_LIMITS(resource_limits_config, (by_id))
 
         HANDLE_DATABASE_OBJECT_WALK_EX(protocol_state, (by_id))
@@ -302,7 +307,8 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
         HANDLE_DATABASE_OBJECT_WALK(account_ram_correction, (by_id)(by_name))
     // by_id
     // by_code_hash
-        HANDLE_DATABASE_OBJECT_WALK(code, (by_id))
+        HANDLE_DATABASE_OBJECT_WALK(code, (by_id)(by_code_hash))
+
         HANDLE_DATABASE_OBJECT_WALK_EX(database_header, (by_id))
 
         FC_ASSERT(0, "unhandled walk request: ${tp} ${pos}", ("tp", tp)("pos", index_position));
@@ -561,6 +567,7 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
     // by_id
     // by_owner
         HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(resource_limits, resource_limits::resource_limits_index)
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(resource_limits, resource_limits::resource_limits_index, 1, resource_limits::by_owner, bool, account_name);
 
     // by_id
     // by_owner
@@ -863,98 +870,98 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
 
 // bound by id_type
 template<int bound_type, int tp, typename object_index, typename object_id_type>
-vector<char> database_object_bound_by_id_type(chainbase::database& db, fc::datastream<const char*>& key_stream) {
+int database_object_bound_by_id_type(chainbase::database& db, fc::datastream<const char*>& key_stream, vector<char>& buffer) {
     object_id_type bound;
     fc::raw::unpack(key_stream, bound._id);
     const auto& idx = db.get_index<object_index, by_id>();
     if (bound_type == 0) {
         auto itr = idx.lower_bound(bound);
         if (itr != idx.end()) {
-            return pack_database_object(*itr);
+            buffer = pack_database_object(*itr);
+            return 1;
         }
     } else {
         auto itr = idx.upper_bound(bound);
         if (itr != idx.end()) {
-            return pack_database_object(*itr);
+            buffer = pack_database_object(*itr);
+            return 1;
         }
     }
-    return vector<char>();
+    return 0;
 }
 
 // bound by index type
 template<int bound_type, int tp, typename object_index, typename index_name, typename key_type>
-vector<char> database_object_bound(chainbase::database& db, fc::datastream<const char*>& key_stream) {
+int database_object_bound(chainbase::database& db, fc::datastream<const char*>& key_stream, vector<char>& buffer) {
     key_type bound;
     fc::raw::unpack(key_stream, bound);
     const auto& idx = db.get_index<object_index, index_name>();
     if (bound_type == 0) {
         auto itr = idx.lower_bound(bound);
         if (itr != idx.end()) {
-            return pack_database_object(*itr);
+            buffer = pack_database_object(*itr);
+            return 1;
         }
     } else {
         auto itr = idx.upper_bound(bound);
         if (itr != idx.end()) {
-            return pack_database_object(*itr);
+            buffer = pack_database_object(*itr);
+            return 1;
         }
     }
-    return vector<char>();
+    return 0;
 }
 
 // bound by index tuple type
 template<int bound_type, int tp, typename object_index, typename index_name, typename... Ts>
-vector<char> database_object_bound_by_composite_key(chainbase::database& db, fc::datastream<const char*>& bound_stream) {
+int database_object_bound_by_composite_key(chainbase::database& db, fc::datastream<const char*>& bound_stream, vector<char>& buffer) {
     std::tuple<Ts...> bound;
     unpack_tuple(bound_stream, bound);
     const auto& idx = db.get_index<object_index, index_name>();
     if (bound_type == 0) {
         auto itr = idx.lower_bound(bound);
         if (itr != idx.end()) {
-            return pack_database_object(*itr);
+            buffer = pack_database_object(*itr);
+            return 1;
         }
     } else {
         auto itr = idx.upper_bound(bound);
         if (itr != idx.end()) {
-            return pack_database_object(*itr);
+            buffer = pack_database_object(*itr);
+            return 1;
         }
     }
-    return vector<char>();
+    return 0;
 }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_ID_EX(OBJECT_NAME) \
     if (tp == OBJECT_NAME##_object_type && index_position == 0) { \
-        find_buffer = database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, OBJECT_NAME##_object::id_type>(db, bound_stream); \
-        return 1; \
+        return database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, OBJECT_NAME##_object::id_type>(db, bound_stream, find_buffer); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_ID(OBJECT_NAME) \
     if (tp == OBJECT_NAME##_object_type && index_position == 0) { \
-        find_buffer = database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, OBJECT_NAME##_object::id_type>(db, bound_stream); \
-        return 1; \
+        return database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, OBJECT_NAME##_object::id_type>(db, bound_stream, find_buffer); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_KEY(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, KEY_TYPE) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        find_buffer = database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, KEY_TYPE>(db, bound_stream); \
-        return 1; \
+        return database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, KEY_TYPE>(db, bound_stream, find_buffer); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_KEY_EX(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, KEY_TYPE) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        find_buffer = database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, KEY_TYPE>(db, bound_stream); \
-        return 1; \
+        return database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, KEY_TYPE>(db, bound_stream, find_buffer); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, ...) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        find_buffer = database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream); \
-        return 1; \
+        return database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream, find_buffer); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, ...) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        find_buffer = database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream); \
-        return 1; \
+        return database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream, find_buffer); \
     }
 
 #define HANDLE_CONTRACT_TABLE_OBJECT_BOUND(OBJECT_NAME, SECONDARY_KEY_TYPE) \
@@ -1015,6 +1022,17 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
     //    struct by_action_name;
     //    struct by_permission_name;
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID(permission_link)
+        // ordered_unique<tag<by_action_name>,
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, code),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, action_name, message_type)
+        // ordered_unique<tag<by_permission_name>,
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, account_name, account),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_name, required_permission),
+        //     BOOST_MULTI_INDEX_MEMBER(permission_link_object, permission_link_object::id_type, id)
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY(permission_link, 1, by_action_name, account_name, account_name, account_name)
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY(permission_link, 2, by_permission_name, account_name, permission_name, permission_link_object::id_type)
+
     //     by_id
     //     by_scope_primary
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID(key_value)
@@ -1055,7 +1073,7 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
         //      BOOST_MULTI_INDEX_MEMBER( transaction_object, time_point_sec, expiration ),
         //      BOOST_MULTI_INDEX_MEMBER( transaction_object, transaction_object::id_type, id)
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID_EX(transaction)
-        // HANDLE_DATABASE_OBJECT_BOUND_BY_KEY_EX(transaction, 1, by_trx_id, transaction_id_type);
+        HANDLE_DATABASE_OBJECT_BOUND_BY_KEY_EX(transaction, 1, by_trx_id, transaction_id_type);
         HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(transaction, 2, by_expiration, time_point_sec, transaction_object::id_type);
 
     //    by_id
@@ -1090,13 +1108,15 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID_EX(generated_transaction)
-        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(generated_transaction, 1, by_expiration, time_point, generated_transaction_object::id_type);
-        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(generated_transaction, 2, by_delay, time_point, generated_transaction_object::id_type);
-        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(generated_transaction, 3, by_sender_id, account_name, uint128_t);
+        HANDLE_DATABASE_OBJECT_BOUND_BY_KEY_EX(generated_transaction, 1, by_trx_id, transaction_id_type);
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(generated_transaction, 2, by_expiration, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(generated_transaction, 3, by_delay, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(generated_transaction, 4, by_sender_id, account_name, uint128_t);
 
     // by_id
     // by_owner
         HANDLE_DATABASE_OBJECT_BOUND_BY_ID(resource_limits)
+        HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY(resource_limits, 1, resource_limits::by_owner, bool, account_name);
 
     // by_id
     // by_owner
@@ -1141,22 +1161,20 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
 
 int32_t database_proxy::lower_bound(void *db, int32_t tp, int32_t index_position, char *raw_data, size_t size, char **out, size_t *out_size) {
     int32_t ret = bound<0>(db, tp, index_position, raw_data, size, find_buffer);
-    if (ret == -2) {
-        return -2;
+    if (ret == 1) {
+        *out = find_buffer.data();
+        *out_size = find_buffer.size();
     }
-    *out = find_buffer.data();
-    *out_size = find_buffer.size();
-    return 1;
+    return ret;
 }
 
 int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position, char *raw_data, size_t size, char **out, size_t *out_size) {
     int32_t ret = bound<1>(db, tp, index_position, raw_data, size, find_buffer);
-    if (ret == -2) {
-        return -2;
+    if (ret == 1 ) {
+        *out = find_buffer.data();
+        *out_size = find_buffer.size();
     }
-    *out = find_buffer.data();
-    *out_size = find_buffer.size();
-    return 1;
+    return ret;
 }
 
 #define DATABASE_OBJECT_ROW_COUNT_EX(OBJECT_NAME, OBJECT_INDEX) \
