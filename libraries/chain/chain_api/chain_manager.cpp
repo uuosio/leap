@@ -285,7 +285,11 @@ chain_manager::chain_manager(string& config, string& _genesis, string& _chain_id
       this->genesis = fc::json::from_string(_genesis).as<genesis_state>();
    }
 
-   this->chain_id = _chain_id;
+   if (!_chain_id.empty()) {
+      this->chain_id = fc::variant(_chain_id).as<chain_id_type>();
+   } else {
+      this->chain_id = this->genesis.compute_chain_id();
+   }
 
    this->snapshot_dir = snapshot_dir;
    this->protocol_features_dir = protocol_features_dir;
@@ -294,13 +298,7 @@ chain_manager::chain_manager(string& config, string& _genesis, string& _chain_id
 void chain_manager::init() {
    auto pfs = _initialize_protocol_features( std::filesystem::path(protocol_features_dir) );
 
-   if (!this->chain_id.empty()) {
-      auto chain_id = fc::json::from_string(this->chain_id).as<chain_id_type>();
-      this->c = std::make_shared<controller>(this->cfg, std::move(pfs), chain_id);
-   } else {
-      auto chain_id = this->genesis.compute_chain_id();
-      this->c = std::make_shared<controller>(this->cfg, std::move(pfs), chain_id);
-   }
+   this->c = std::make_shared<controller>(this->cfg, std::move(pfs), this->chain_id);
 
    this->c->add_indices();
 }

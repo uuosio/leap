@@ -594,7 +594,7 @@ string chain_proxy::get_scheduled_transactions() {
 }
 
 string chain_proxy::get_scheduled_transaction(const unsigned __int128 sender_id, string& sender) {
-    auto& generated_transaction_idx = c->db().get_index<generated_transaction_multi_index>();
+    // auto& generated_transaction_idx = c->db().get_index<generated_transaction_multi_index>();
     const auto* gto = c->db().find<generated_transaction_object,by_sender_id>(boost::make_tuple(account_name(sender), sender_id));
     if ( gto ) {
         return fc::json::to_string(*gto, fc::time_point::maximum());

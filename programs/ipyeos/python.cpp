@@ -42,7 +42,7 @@ extern "C" int start_python(int argc, char **argv) {
     }
 
 
-    fnPyRun_SimpleString PyRun_SimpleString = (fnPyRun_SimpleString)dlsym(handle, "PyRun_SimpleString");
+    // fnPyRun_SimpleString PyRun_SimpleString = (fnPyRun_SimpleString)dlsym(handle, "PyRun_SimpleString");
     if (Py_Initialize == 0) {
         printf("++++++++Py_Initialize not found in shared library\n");
         return -1;
@@ -69,16 +69,16 @@ extern "C" int start_python(int argc, char **argv) {
     return Py_Main(argc, _argv);
 
     // Py_InitializeEx(0);
-    // PyRun_SimpleString("import struct;print(struct)\n" \
-    //                     "import os;import sys;sys.path.append('.')\n" \
+    // PyRun_SimpleString("import struct;print(struct)\n"
+    //                     "import os;import sys;sys.path.append('.')\n"
     //                     "uuos_lib=os.getenv('UUOS_EXT_LIB')\n"
     //                     "print(uuos_lib)\n"
     //                     "sys.path.append(uuos_lib)\n"
     //                     "import uuos\n"
     // );
 
-    // PyRun_SimpleString("import struct;print(struct)\n" \
-    //                     "import os;import sys;sys.path.append('.')\n" \
+    // PyRun_SimpleString("import struct;print(struct)\n"
+    //                     "import os;import sys;sys.path.append('.')\n"
     //                     "uuos_lib=os.getenv('UUOS_EXT_LIB')\n"
     //                     "print(uuos_lib)\n"
     //                     "sys.path.append(uuos_lib)\n"

@@ -19,7 +19,7 @@ class chain_manager {
         std::shared_ptr<controller> c;
         controller::config cfg;
         genesis_state genesis;
-        string chain_id;
+        chain_id_type chain_id = chain_id_type::empty_chain_id();
         string snapshot_dir;
         string protocol_features_dir;
         bool _shutdown = false;
