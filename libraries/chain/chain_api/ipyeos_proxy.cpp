@@ -55,10 +55,10 @@ database_proxy *ipyeos_proxy::new_database_proxy() {
     return new database_proxy();
 }
 
-chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir) {
+chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir) {
     try {
         chain_proxy *proxy = new chain_proxy();
-        proxy->init(config, _genesis, protocol_features_dir, snapshot_dir);
+        proxy->init(config, _genesis, chain_id, protocol_features_dir, snapshot_dir);
         chain_proxy_map[proxy->chain()] = proxy;
         return proxy;
     } CATCH_AND_LOG_EXCEPTION();

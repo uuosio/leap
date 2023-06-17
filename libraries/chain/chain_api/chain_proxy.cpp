@@ -24,8 +24,8 @@ chain_proxy::chain_proxy() {
 chain_proxy::~chain_proxy() {
 }
 
-int chain_proxy::init(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir) {
-    cm = std::make_unique<chain_manager>(config, _genesis, protocol_features_dir, snapshot_dir);
+int chain_proxy::init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir) {
+    cm = std::make_unique<chain_manager>(config, _genesis, chain_id, protocol_features_dir, snapshot_dir);
     this->cm->init();
     this->c = this->cm->c;
 

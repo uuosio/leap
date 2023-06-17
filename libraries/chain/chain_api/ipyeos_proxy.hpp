@@ -49,7 +49,7 @@ class ipyeos_proxy {
         virtual apply_context_proxy *get_apply_context_proxy();
         virtual vm_api_proxy *get_vm_api_proxy();
         virtual database_proxy *new_database_proxy();
-        virtual chain_proxy* chain_new(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir);
+        virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir);
         virtual void chain_free(chain_proxy* api);
 
         virtual void pack_abi(string& abi, vector<char>& packed_message);

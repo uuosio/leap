@@ -36,7 +36,7 @@ class chain_proxy {
     public:
         chain_proxy();
         virtual ~chain_proxy();
-        virtual int init(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir);
+        virtual int init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir);
         virtual int attach(eosio::chain::controller* c);
 
         virtual eosio::chain::controller* chain();
