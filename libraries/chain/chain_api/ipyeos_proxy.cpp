@@ -78,6 +78,18 @@ void ipyeos_proxy::chain_free(chain_proxy* c) {
     } CATCH_AND_LOG_EXCEPTION();
 }
 
+string ipyeos_proxy::extract_chain_id_from_snapshot(string& snapshot_dir) {
+    try {
+        auto infile = std::ifstream(snapshot_dir, (std::ios::in | std::ios::binary));
+        istream_snapshot_reader reader(infile);
+        reader.validate();
+        auto chain_id = controller::extract_chain_id(reader);
+        infile.close();
+        return chain_id.str();        
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
+}
+
 void ipyeos_proxy::pack_abi(string& abi, vector<char>& packed_obj)
 {
     try {

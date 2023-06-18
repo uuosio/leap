@@ -52,6 +52,8 @@ class ipyeos_proxy {
         virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir);
         virtual void chain_free(chain_proxy* api);
 
+        virtual string extract_chain_id_from_snapshot(string& snapshot_dir);
+
         virtual void pack_abi(string& abi, vector<char>& packed_message);
 
         virtual void pack_native_object(int type, string& msg, vector<char>& packed_message);
