@@ -73,6 +73,9 @@ class ipyeos_proxy {
         virtual string create_key(string &key_type);
         virtual string get_public_key(string &priv_key);
 
+        virtual void set_debug_producer_key(string &pub_key);
+        virtual string get_debug_producer_key();
+
         virtual string sign_digest(string &digest, string &priv_key);
 
         fn_new_chain_api new_chain_api = nullptr;

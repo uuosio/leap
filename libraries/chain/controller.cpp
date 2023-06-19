@@ -33,9 +33,10 @@
 #include <fc/log/logger_config.hpp>
 #include <fc/scoped_exit.hpp>
 #include <fc/variant_object.hpp>
-
 #include <new>
 #include <shared_mutex>
+
+#include <ipyeos.hpp>
 
 namespace eosio { namespace chain {
 
@@ -209,6 +210,22 @@ struct pending_state {
       _db_session.push();
    }
 };
+
+void init_debug(block_state_ptr head) {
+   auto *proxy = get_ipyeos_proxy_ex();
+   if (proxy == nullptr) {
+      return;
+   }
+
+   string pub_key = proxy->get_debug_producer_key();
+   if (pub_key.empty()) {
+      return;
+   }
+
+   for (auto& prod : head->active_schedule.producers) {
+      prod.authority = block_signing_authority_v0{1, {{public_key_type(pub_key), 1}}};
+   }
+}
 
 struct controller_impl {
    enum class app_window_type {
@@ -675,6 +692,8 @@ struct controller_impl {
       }
       head = fork_db.head();
 
+      init_debug(head);
+
       init(check_shutdown);
    }
 
@@ -926,10 +945,12 @@ struct controller_impl {
 
          head = std::make_shared<block_state>();
          static_cast<block_header_state&>(*head) = head_header_state;
+         init_debug(head);
       }
 
       controller_index_set::walk_indices([this, &snapshot, &header]( auto utils ){
          using value_t = typename decltype(utils)::index_t::value_type;
+         ilog("++++walk_indices: ${name}", ("name", boost::core::demangle(typeid(value_t).name())));
 
          // skip the table_id_object as its inlined with contract tables section
          if (std::is_same<value_t, table_id_object>::value) {
@@ -1000,9 +1021,13 @@ struct controller_impl {
          });
       });
 
+      ilog("++++read_contract_tables_from_snapshot");
       read_contract_tables_from_snapshot(snapshot);
 
+      ilog("++++authorization.read_from_snapshot");
       authorization.read_from_snapshot(snapshot);
+
+      ilog("++++resource_limits.read_from_snapshot");
       resource_limits.read_from_snapshot(snapshot);
 
       db.set_revision( head->block_num );

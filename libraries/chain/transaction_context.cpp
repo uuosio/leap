@@ -20,7 +20,7 @@
 
 #include <chrono>
 
-#include "ipyeos.hpp"
+#include <ipyeos.hpp>
 
 namespace eosio { namespace chain {
 

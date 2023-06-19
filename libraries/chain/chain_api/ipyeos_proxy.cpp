@@ -17,7 +17,8 @@
 using namespace eosio::chain;
 
 
-static string last_error;
+static string last_error = "";
+static string s_set_debug_producer_key = "";
 
 string& get_last_error() {
     return last_error;
@@ -167,4 +168,12 @@ string ipyeos_proxy::sign_digest(string &digest, string &priv_key) {
         return _priv_key.sign(_digest).to_string();
     } CATCH_AND_LOG_EXCEPTION();
     return "";
+}
+
+void ipyeos_proxy::set_debug_producer_key(string &pub_key) {
+    s_set_debug_producer_key = pub_key;
+}
+
+string ipyeos_proxy::get_debug_producer_key() {
+    return s_set_debug_producer_key;
 }
