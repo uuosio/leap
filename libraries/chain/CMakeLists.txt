@@ -140,6 +140,7 @@ add_library( eosio_chain
               chain_api/database_proxy_find.cpp
               chain_api/database_proxy_bound.cpp
               chain_api/database_proxy_modify.cpp
+              chain_api/database_proxy_create.cpp
 
              ${CHAIN_EOSVMOC_SOURCES}
              ${CHAIN_EOSVM_SOURCES}

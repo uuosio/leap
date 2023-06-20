@@ -32,29 +32,6 @@ void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data
     this->custom_data = custom_data;
 }
 
-#define GENERATE_DB_CREATE(OBJECT_NAME) \
-    if (OBJECT_NAME##_object_type == tp) { \
-        auto obj = unpack_database_object<OBJECT_NAME##_>(raw_data, raw_data_size); \
-        return create<OBJECT_NAME##_object, OBJECT_NAME##_>(db, obj); \
-    }
-
-template<typename database_object, typename database_object_>
-int32_t database_proxy::create(chainbase::database& db, database_object_& obj) {
-    try {
-        db.create<generated_transaction_object>( [&]( auto& _obj ) {
-            _obj.trx_id = obj.trx_id;
-        } );
-        return 1;
-    }CATCH_AND_LOG_EXCEPTION()
-    return -2;
-}
-
-int32_t database_proxy::create(void *_db, int32_t tp, const char *raw_data, size_t raw_data_size) {
-    auto& db = *static_cast<chainbase::database *>(_db);
-    GENERATE_DB_CREATE(generated_transaction)
-    return -2;
-}
-
 #define DATABASE_OBJECT_ROW_COUNT_EX(OBJECT_NAME, OBJECT_INDEX) \
     if (tp == OBJECT_NAME##_object_type) { \
         return db.get_index<OBJECT_INDEX>().indices().size(); \
