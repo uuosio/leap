@@ -345,9 +345,10 @@ int32_t database_proxy::modify(void *_db, int32_t tp, int32_t index_position, ch
         if (generated_transaction_object_type == tp) {
             const generated_transaction_object* obj = nullptr;
             HANDLE_DATABASE_OBJECT_FIND_BY_ID(generated_transaction)
-            HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 1, by_expiration, time_point, generated_transaction_object::id_type);
-            HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 2, by_delay, time_point, generated_transaction_object::id_type);
-            HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 3, by_sender_id, account_name, uint128_t);
+            HANDLE_DATABASE_OBJECT_FIND_BY_KEY(generated_transaction, 1, by_trx_id, transaction_id_type);
+            HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 2, by_expiration, time_point, generated_transaction_object::id_type);
+            HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 3, by_delay, time_point, generated_transaction_object::id_type);
+            HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 4, by_sender_id, account_name, uint128_t);
             MODIFY_BEGIN(generated_transaction)
                 _obj.trx_id = __obj.trx_id;
                 _obj.sender = __obj.sender;
