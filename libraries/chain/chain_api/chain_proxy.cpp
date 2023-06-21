@@ -3,7 +3,7 @@
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/generated_transaction_object.hpp>
 #include <eosio/chain/webassembly/interface.hpp>
-
+#include <eosio/chain/block_log.hpp>
 #include <fc/io/json.hpp>
 
 #include <dlfcn.h>
@@ -610,6 +610,23 @@ string chain_proxy::push_scheduled_transaction(string& scheduled_tx_id, string& 
 
     auto ret = c->push_scheduled_transaction(id, _deadline, max_trx_time, billed_cpu_time_us, false);
     return fc::json::to_string(ret, fc::time_point::maximum());
+}
+
+bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
+    try {
+        auto block_log = static_cast<eosio::chain::block_log*>(block_log_ptr);
+        auto b = block_log->read_block_by_num(block_num);
+        auto bsf = c->create_block_state_future(b->calculate_id(), b);
+        controller::block_report br;
+        c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
+            FC_ASSERT(false, "forked_branch_callback not implemented");
+        }, []( const transaction_id_type& id ) {
+            FC_ASSERT(false, "trx_meta_cache_lookup not implemented");
+            return nullptr;
+        } );
+        return true;
+    } CATCH_AND_LOG_EXCEPTION();
+    return false;
 }
 
 void chain_proxy::load_abi(string& account) {

@@ -56,6 +56,10 @@ database_proxy *ipyeos_proxy::new_database_proxy() {
     return new database_proxy();
 }
 
+block_log_proxy *ipyeos_proxy::new_block_log_proxy(string& block_log_dir) {
+    return new block_log_proxy(block_log_dir);
+}
+
 chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir) {
     try {
         chain_proxy *proxy = new chain_proxy();
