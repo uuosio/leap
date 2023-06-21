@@ -249,8 +249,8 @@ string chain_proxy::fork_db_pending_head_block_producer() {
     // return c->fork_db_pending_head_block_producer().to_string();
 }
 
-string chain_proxy::pending_block_time() {
-    return c->pending_block_time().to_iso_string();
+int64_t chain_proxy::pending_block_time() {
+    return c->pending_block_time().time_since_epoch().count();
 }
 
 string chain_proxy::pending_block_producer() {

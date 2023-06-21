@@ -79,7 +79,7 @@ class chain_proxy {
         virtual string fork_db_pending_head_block_id();
         virtual string fork_db_pending_head_block_time();
         virtual string fork_db_pending_head_block_producer();
-        virtual string pending_block_time();
+        virtual int64_t pending_block_time();
         virtual string pending_block_producer();
         virtual string pending_producer_block_id();
         virtual string active_producers();
