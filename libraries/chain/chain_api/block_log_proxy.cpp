@@ -2,6 +2,7 @@
 #include <eosio/chain/block_log.hpp>
 
 #include "block_log_proxy.hpp"
+#include "chain_macro.hpp"
 
 using namespace eosio::chain;
 
@@ -18,33 +19,71 @@ void *block_log_proxy::get_block_log_ptr() {
 }
 
 string block_log_proxy::read_block_by_num(uint32_t block_num) {
-    auto block = _block_log->read_block_by_num(block_num);
-    return fc::json::to_string(*block, fc::time_point::maximum());
+    try {
+        auto block = _block_log->read_block_by_num(block_num);
+        if (!block) {
+            return "";
+        }
+        return fc::json::to_string(*block, fc::time_point::maximum());
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 string block_log_proxy::read_block_header_by_num(uint32_t block_num) {
-    auto block_header = _block_log->read_block_header_by_num(block_num);
-    return fc::json::to_string(block_header, fc::time_point::maximum());
+    try {
+        auto block_header = _block_log->read_block_header_by_num(block_num);
+        if (!block_header) {
+            return "";
+        }
+        return fc::json::to_string(block_header, fc::time_point::maximum());
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 string block_log_proxy::read_block_id_by_num(uint32_t block_num) {
-    auto block_id = _block_log->read_block_id_by_num(block_num);
-    return fc::json::to_string(block_id, fc::time_point::maximum());
+    try {
+        auto block_id = _block_log->read_block_id_by_num(block_num);
+        return block_id.str();
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 string block_log_proxy::read_block_by_id(const string& id) {
-    auto block = _block_log->read_block_by_id(fc::variant(id).as<block_id_type>());
-    return fc::json::to_string(block, fc::time_point::maximum());
+    try {
+        auto block = _block_log->read_block_by_id(fc::variant(id).as<block_id_type>());
+        if (!block) {
+            return "";
+        }
+        return fc::json::to_string(block, fc::time_point::maximum());
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 string block_log_proxy::head() {
-    auto block = _block_log->head();
-    return fc::json::to_string(block, fc::time_point::maximum());
+    try {
+        auto block = _block_log->head();
+        if (!block) {
+            return "";
+        }
+        return fc::json::to_string(block, fc::time_point::maximum());
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
+}
+
+uint32_t block_log_proxy::head_block_num() {
+    try {
+        auto block_num = _block_log->head()->block_num();
+        return block_num;
+    } CATCH_AND_LOG_EXCEPTION();
+    return 0;
 }
 
 string block_log_proxy::head_id() {
-    auto block_id = _block_log->head_id();
-    return block_id.str();
+    try {
+        auto block_id = _block_log->head_id();
+        return block_id.str();
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 uint32_t block_log_proxy::first_block_num() {

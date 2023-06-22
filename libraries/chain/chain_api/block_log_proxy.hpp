@@ -22,6 +22,7 @@ public:
     virtual string read_block_id_by_num(uint32_t block_num);
     virtual string read_block_by_id(const string& id);
     virtual string head();
+    virtual uint32_t head_block_num();
     virtual string head_id();
     virtual uint32_t first_block_num();
 

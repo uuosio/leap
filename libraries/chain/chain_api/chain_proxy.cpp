@@ -616,6 +616,9 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
     try {
         auto block_log = static_cast<eosio::chain::block_log*>(block_log_ptr);
         auto b = block_log->read_block_by_num(block_num);
+        if (!b) {
+            return false;
+        }
         auto bsf = c->create_block_state_future(b->calculate_id(), b);
         controller::block_report br;
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
