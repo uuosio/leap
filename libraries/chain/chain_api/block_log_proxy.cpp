@@ -72,7 +72,11 @@ string block_log_proxy::head() {
 
 uint32_t block_log_proxy::head_block_num() {
     try {
-        auto block_num = _block_log->head()->block_num();
+        auto _head = _block_log->head();
+        if (!_head) {
+            return 0;
+        }
+        auto block_num = _head->block_num();
         return block_num;
     } CATCH_AND_LOG_EXCEPTION();
     return 0;
