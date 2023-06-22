@@ -137,6 +137,7 @@ add_library( eosio_chain
               chain_api/database_objects.cpp
               chain_api/database_proxy.cpp
               chain_api/database_proxy_walk.cpp
+              chain_api/database_proxy_walk_range.cpp
               chain_api/database_proxy_find.cpp
               chain_api/database_proxy_bound.cpp
               chain_api/database_proxy_modify.cpp
