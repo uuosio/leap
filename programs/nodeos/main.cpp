@@ -66,7 +66,7 @@ void configure_logging(const std::filesystem::path& config_path)
 
 } // namespace detail
 
-void logging_conf_handler()
+static void logging_conf_handler()
 {
    auto config_path = app().get_logging_conf();
    if( std::filesystem::exists( config_path ) ) {

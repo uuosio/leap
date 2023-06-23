@@ -35,7 +35,7 @@ void configure_logging(const std::filesystem::path& config_path) {
    }
 }
 
-void logging_conf_handler() {
+static void logging_conf_handler() {
    auto config_path = app().get_logging_conf();
    if (std::filesystem::exists(config_path)) {
       ilog("Received HUP.  Reloading logging configuration from ${p}.", ("p", config_path.string()));
@@ -46,7 +46,7 @@ void logging_conf_handler() {
    fc::log_config::initialize_appenders();
 }
 
-void initialize_logging() {
+static void initialize_logging() {
    auto config_path = app().get_logging_conf();
    if (std::filesystem::exists(config_path))
       fc::configure_logging(config_path); // intentionally allowing exceptions to escape
@@ -56,7 +56,7 @@ void initialize_logging() {
 }
 
 
-std::filesystem::path determine_home_directory()
+static std::filesystem::path determine_home_directory()
 {
    std::filesystem::path home;
    struct passwd* pwd = getpwuid(getuid());
@@ -82,7 +82,7 @@ enum return_codes {
    NODE_MANAGEMENT_SUCCESS = 5
 };
 
-int main(int argc, char** argv)
+int main_keosd(int argc, char** argv)
 {
    try {
       appbase::scoped_app app;

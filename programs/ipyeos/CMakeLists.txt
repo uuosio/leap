@@ -43,6 +43,7 @@ else()
 endif()
 
 target_link_libraries( ${NODE_EXECUTABLE_NAME}
+        PRIVATE cleos-main keosd-main
         PRIVATE appbase version
         PRIVATE -Wl,${whole_archive_flag} state_history_plugin       -Wl,${no_whole_archive_flag}
         PRIVATE -Wl,${whole_archive_flag} trace_api_plugin           -Wl,${no_whole_archive_flag}

@@ -2,7 +2,10 @@ find_package(CURL 7.40.0 REQUIRED)
 
 configure_file(help_text.cpp.in help_text.cpp @ONLY)
 configure_file(config.hpp.in config.hpp ESCAPE_QUOTES)
-add_executable( ${CLI_CLIENT_EXECUTABLE_NAME} main.cpp httpc.cpp "${CMAKE_CURRENT_BINARY_DIR}/help_text.cpp" localize.hpp "${CMAKE_CURRENT_BINARY_DIR}/config.hpp")
+
+add_library( ${CLI_CLIENT_EXECUTABLE_NAME}-main main.cpp httpc.cpp "${CMAKE_CURRENT_BINARY_DIR}/help_text.cpp" localize.hpp "${CMAKE_CURRENT_BINARY_DIR}/config.hpp")
+add_executable( ${CLI_CLIENT_EXECUTABLE_NAME} cleos.cpp)
+
 if( UNIX AND NOT APPLE )
   set(rt_library rt )
 endif()
@@ -10,15 +13,18 @@ endif()
 set(LOCALEDIR ${CMAKE_INSTALL_PREFIX}/share/locale)
 set(LOCALEDOMAIN ${CLI_CLIENT_EXECUTABLE_NAME})
 
-target_include_directories(${CLI_CLIENT_EXECUTABLE_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${CLI_CLIENT_EXECUTABLE_NAME}-main PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries( ${CLI_CLIENT_EXECUTABLE_NAME}
-                       PRIVATE appbase version leap-cli11 chain_api_plugin producer_plugin chain_plugin http_plugin eosio_chain fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
+                       PUBLIC ${CLI_CLIENT_EXECUTABLE_NAME}-main )
+
+target_link_libraries( ${CLI_CLIENT_EXECUTABLE_NAME}-main
+                       PUBLIC appbase version leap-cli11 chain_api_plugin producer_plugin chain_plugin http_plugin eosio_chain fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
 
 if (CURL_FOUND)
-  target_sources(${CLI_CLIENT_EXECUTABLE_NAME} PRIVATE do_http_post_libcurl.cpp)
-  target_include_directories(${CLI_CLIENT_EXECUTABLE_NAME} PRIVATE ${CURL_INCLUDE_DIRS})
-  target_link_libraries(${CLI_CLIENT_EXECUTABLE_NAME} PRIVATE ${CURL_LIBRARIES})
+  target_sources(${CLI_CLIENT_EXECUTABLE_NAME}-main PRIVATE do_http_post_libcurl.cpp)
+  target_include_directories(${CLI_CLIENT_EXECUTABLE_NAME}-main PRIVATE ${CURL_INCLUDE_DIRS})
+  target_link_libraries(${CLI_CLIENT_EXECUTABLE_NAME}-main PRIVATE ${CURL_LIBRARIES})
 endif()
 
 copy_bin( ${CLI_CLIENT_EXECUTABLE_NAME} )

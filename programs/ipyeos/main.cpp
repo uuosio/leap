@@ -91,7 +91,7 @@ void configure_logging(const std::filesystem::path& config_path)
 
 } // namespace detail
 
-void logging_conf_handler()
+static void logging_conf_handler()
 {
    auto config_path = app().get_logging_conf();
    if( std::filesystem::exists( config_path ) ) {
@@ -103,7 +103,7 @@ void logging_conf_handler()
    fc::log_config::initialize_appenders();
 }
 
-void initialize_logging()
+static void initialize_logging()
 {
    auto config_path = app().get_logging_conf();
    if(std::filesystem::exists(config_path))
@@ -204,8 +204,34 @@ int eos_cb::get_log_level(string& logger_name) {
    }
 }
 
+extern int main_cleos( int argc, char** argv );
+extern int main_keosd( int argc, char** argv );
+
+int main_nodeos( int argc, char** argv ) {
+   auto ret = eos_init(argc, argv);
+   if (ret != 0) {
+      return ret;
+   }
+   if (argc >= 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
+      return 0;
+   }
+   return eos_exec();
+}
+
 int main(int argc, char** argv)
 {
+   if (argc >= 2 && strcmp(argv[1], "nodeos") == 0) {
+      return main_nodeos(argc-1, &argv[1]);
+   }
+
+   if (argc >= 2 && strcmp(argv[1], "cleos") == 0) {
+      return main_cleos(argc-1, &argv[1]);
+   }
+
+   if (argc >= 2 && strcmp(argv[1], "keosd") == 0) {
+      return main_keosd(argc-1, &argv[1]);
+   }
+
    eos_cb *cb = new eos_cb();
    ipyeos_init_chain(cb);
    init_new_chain_api();

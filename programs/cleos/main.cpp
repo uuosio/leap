@@ -134,7 +134,7 @@ FC_DECLARE_EXCEPTION( localized_exception, 10000000, "an error occured" );
   )
 
 //copy pasta from keosd's main.cpp
-std::filesystem::path determine_home_directory()
+static std::filesystem::path determine_home_directory()
 {
    std::filesystem::path home;
    struct passwd* pwd = getpwuid(getuid());
@@ -2775,7 +2775,7 @@ struct get_block_params {
    bool get_bheader_extensions = false;
 };
 
-int main( int argc, char** argv ) {
+int main_cleos( int argc, char** argv ) {
 
    fc::logger::get(DEFAULT_LOGGER).set_log_level(fc::log_level::debug);
 
