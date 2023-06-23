@@ -270,9 +270,10 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, account_name, sender),
         //     BOOST_MULTI_INDEX_MEMBER( generated_transaction_object, uint128_t, sender_id)
         HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID_EX(generated_transaction, generated_transaction_multi_index)
-        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(generated_transaction, generated_transaction_multi_index, 1, by_expiration, time_point, generated_transaction_object::id_type);
-        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(generated_transaction, generated_transaction_multi_index, 2, by_delay, time_point, generated_transaction_object::id_type);
-        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(generated_transaction, generated_transaction_multi_index, 3, by_sender_id, account_name, uint128_t);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_INDEX_TYPE_EX(generated_transaction, generated_transaction_multi_index, 1, by_trx_id, transaction_id_type);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(generated_transaction, generated_transaction_multi_index, 2, by_expiration, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(generated_transaction, generated_transaction_multi_index, 3, by_delay, time_point, generated_transaction_object::id_type);
+        HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(generated_transaction, generated_transaction_multi_index, 4, by_sender_id, account_name, uint128_t);
 
     // by_id
     // by_owner
