@@ -117,10 +117,10 @@ int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
     //   by_primary
     //   by_secondary
         HANDLE_DATABASE_OBJECT_WALK(index64, (by_id)(by_primary)(by_secondary))
-        HANDLE_DATABASE_OBJECT_WALK(index128, (by_id)(by_primary))
-        HANDLE_DATABASE_OBJECT_WALK(index256, (by_id)(by_primary))
-        HANDLE_DATABASE_OBJECT_WALK(index_double, (by_id)(by_primary))
-        HANDLE_DATABASE_OBJECT_WALK(index_long_double, (by_id)(by_primary))
+        HANDLE_DATABASE_OBJECT_WALK(index128, (by_id)(by_primary)(by_secondary))
+        HANDLE_DATABASE_OBJECT_WALK(index256, (by_id)(by_primary)(by_secondary))
+        HANDLE_DATABASE_OBJECT_WALK(index_double, (by_id)(by_primary)(by_secondary))
+        HANDLE_DATABASE_OBJECT_WALK(index_long_double, (by_id)(by_primary)(by_secondary))
 
         HANDLE_DATABASE_OBJECT_WALK_EX(global_property, (by_id))
         HANDLE_DATABASE_OBJECT_WALK_EX(dynamic_global_property, (by_id))

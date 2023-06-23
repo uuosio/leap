@@ -276,7 +276,7 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
 
     // by_id
         HANDLE_DATABASE_OBJECT_FIND_BY_ID(database_header)
-        return 1;
+        FC_ASSERT(0, "unhandled find request: ${tp} ${pos}", ("tp", tp)("pos", index_position));
     } CATCH_AND_LOG_EXCEPTION();
     return -2;
 }

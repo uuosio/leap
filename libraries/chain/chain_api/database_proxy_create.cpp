@@ -285,7 +285,7 @@ int32_t database_proxy::create(void *_db, int32_t tp, const char *raw_data, size
             _obj.version = __obj.version;
         CREATE_END()
 
-        FC_ASSERT(0, "unhandled object ${tp}", ("tp", tp));
+        FC_ASSERT(0, "unhandled object type ${tp} in create", ("tp", tp));
     } CATCH_AND_LOG_EXCEPTION();
     return -2;
 }

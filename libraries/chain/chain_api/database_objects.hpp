@@ -346,7 +346,6 @@ template<>
 inline vector<char> pack_database_object<index64_object>(const index64_object& obj) {
     std::vector<char> vec(fc::raw::pack_size(obj) + 16);
     fc::datastream<char*>  ds(vec.data(), vec.size());
-    elog("+++++++++pack_database_object<index64_object>: ${n}", ("n", obj.id));
     fc::raw::pack(ds, obj.id);
     fc::raw::pack(ds, obj.t_id);
     fc::raw::pack(ds, obj);
@@ -390,6 +389,19 @@ inline vector<char> pack_database_object<index_long_double_object>(const index_l
     fc::raw::pack(ds, obj.id);
     fc::raw::pack(ds, obj.t_id);
     fc::raw::pack(ds, obj);
+    return vec;
+}
+
+template<>
+inline vector<char> pack_database_object<resource_limits::resource_limits_object>(const resource_limits::resource_limits_object& obj) {
+    std::vector<char> vec(fc::raw::pack_size(obj) + 8 + 1);
+    fc::datastream<char*>  ds(vec.data(), vec.size());
+    fc::raw::pack(ds, obj.id);
+    fc::raw::pack(ds, obj.owner);
+    fc::raw::pack(ds, obj.pending);
+    fc::raw::pack(ds, obj.net_weight);
+    fc::raw::pack(ds, obj.cpu_weight);
+    fc::raw::pack(ds, obj.ram_bytes);
     return vec;
 }
 
