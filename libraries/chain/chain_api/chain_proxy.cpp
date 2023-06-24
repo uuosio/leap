@@ -4,7 +4,10 @@
 #include <eosio/chain/generated_transaction_object.hpp>
 #include <eosio/chain/webassembly/interface.hpp>
 #include <eosio/chain/block_log.hpp>
+#include <eosio/chain/block.hpp>
+
 #include <fc/io/json.hpp>
+#include <fc/io/raw.hpp>
 
 #include <dlfcn.h>
 
@@ -619,6 +622,22 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
         if (!b) {
             return false;
         }
+        auto bsf = c->create_block_state_future(b->calculate_id(), b);
+        controller::block_report br;
+        c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
+            FC_ASSERT(false, "forked_branch_callback not implemented");
+        }, []( const transaction_id_type& id ) {
+            FC_ASSERT(false, "trx_meta_cache_lookup not implemented");
+            return nullptr;
+        } );
+        return true;
+    } CATCH_AND_LOG_EXCEPTION();
+    return false;
+}
+
+bool chain_proxy::push_raw_block(const vector<char>& raw_block) {
+    try {
+        auto b = fc::raw::unpack<signed_block_ptr>(raw_block);
         auto bsf = c->create_block_state_future(b->calculate_id(), b);
         controller::block_report br;
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
