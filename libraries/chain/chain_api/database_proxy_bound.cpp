@@ -95,32 +95,32 @@ int database_object_bound_by_composite_key(chainbase::database& db, fc::datastre
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_ID_EX(OBJECT_NAME) \
     if (tp == OBJECT_NAME##_object_type && index_position == 0) { \
-        return database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, OBJECT_NAME##_object::id_type>(db, bound_stream, find_buffer); \
+        return database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, OBJECT_NAME##_object::id_type>(db, bound_stream, out); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_ID(OBJECT_NAME) \
     if (tp == OBJECT_NAME##_object_type && index_position == 0) { \
-        return database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, OBJECT_NAME##_object::id_type>(db, bound_stream, find_buffer); \
+        return database_object_bound_by_id_type<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, OBJECT_NAME##_object::id_type>(db, bound_stream, out); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_KEY(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, KEY_TYPE) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        return database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, KEY_TYPE>(db, bound_stream, find_buffer); \
+        return database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, KEY_TYPE>(db, bound_stream, out); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_KEY_EX(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, KEY_TYPE) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        return database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, KEY_TYPE>(db, bound_stream, find_buffer); \
+        return database_object_bound<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, KEY_TYPE>(db, bound_stream, out); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, ...) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        return database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream, find_buffer); \
+        return database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream, out); \
     }
 
 #define HANDLE_DATABASE_OBJECT_BOUND_BY_COMPOSITE_KEY_EX(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, ...) \
     if (tp == OBJECT_NAME##_object_type && index_position == INDEX_POSITION) { \
-        return database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream, find_buffer); \
+        return database_object_bound_by_composite_key<bound_type, OBJECT_NAME##_object_type, OBJECT_NAME##_multi_index, INDEX_NAME, __VA_ARGS__>(db, bound_stream, out); \
     }
 
 #define HANDLE_CONTRACT_TABLE_OBJECT_BOUND(OBJECT_NAME, SECONDARY_KEY_TYPE) \
@@ -139,7 +139,7 @@ int database_object_bound_by_composite_key(chainbase::database& db, fc::datastre
 
 
 template<int bound_type>
-int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, size_t size, vector<char>& find_buffer) {
+int32_t bound(void *_db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     fc::datastream<const char*> bound_stream(raw_data, size);
     auto& db = *static_cast<chainbase::database *>(_db);
 
@@ -318,20 +318,10 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, char *raw_data, siz
     return -2;
 }
 
-int32_t database_proxy::lower_bound(void *db, int32_t tp, int32_t index_position, char *raw_data, size_t size, char **out, size_t *out_size) {
-    int32_t ret = bound<0>(db, tp, index_position, raw_data, size, find_buffer);
-    if (ret == 1) {
-        *out = find_buffer.data();
-        *out_size = find_buffer.size();
-    }
-    return ret;
+int32_t database_proxy::lower_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char> &out) {
+    return bound<0>(db, tp, index_position, raw_data, size, out);
 }
 
-int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position, char *raw_data, size_t size, char **out, size_t *out_size) {
-    int32_t ret = bound<1>(db, tp, index_position, raw_data, size, find_buffer);
-    if (ret == 1 ) {
-        *out = find_buffer.data();
-        *out_size = find_buffer.size();
-    }
-    return ret;
+int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char> &out) {
+    return bound<1>(db, tp, index_position, raw_data, size, out);
 }

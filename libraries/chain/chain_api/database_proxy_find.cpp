@@ -37,7 +37,7 @@ using namespace eosio::chain::resource_limits;
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = pack_database_object(*obj); \
+        out = pack_database_object(*obj); \
         return 1; \
     }
 
@@ -49,7 +49,7 @@ using namespace eosio::chain::resource_limits;
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = pack_database_object(*obj); \
+        out = pack_database_object(*obj); \
         return 1; \
     }
 
@@ -61,7 +61,7 @@ using namespace eosio::chain::resource_limits;
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = pack_database_object(*obj); \
+        out = pack_database_object(*obj); \
         return 1; \
     }
 
@@ -73,7 +73,7 @@ using namespace eosio::chain::resource_limits;
         if (!obj) { \
             return 0; \
         } \
-        find_buffer = pack_database_object(*obj); \
+        out = pack_database_object(*obj); \
         return 1; \
     }
 
@@ -91,22 +91,7 @@ using namespace eosio::chain::resource_limits;
         FC_ASSERT(0, "HANDLE_CONTRACT_TABLE_OBJECT_FIND: invalid index position"); \
     }
 
-// template<typename database_object, typename index_name, typename... Ts>
-// int32_t database_object_find_composite_key(chainbase::database& db, fc::datastream<const char*>& stream, char **out, size_t *out_size){
-//     std::tuple<Ts...> key;
-
-//     unpack_tuple(stream, key);
-//     const auto* obj = db.find<database_object, index_name>(key);
-//     if (!obj) {
-//         return 0;
-//     }
-//     find_buffer = fc::raw::pack(*obj);
-//     *out = find_buffer.data();
-//     *out_size = find_buffer.size();
-//     return 1;
-// }
-
-int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char *raw_data, size_t size) {
+int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char> &out) {
     fc::datastream<const char*> stream(raw_data, size);
     auto& db = *static_cast<chainbase::database *>(_db);
 
@@ -279,15 +264,4 @@ int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char
         FC_ASSERT(0, "unhandled find request: ${tp} ${pos}", ("tp", tp)("pos", index_position));
     } CATCH_AND_LOG_EXCEPTION();
     return -2;
-}
-
-int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, char *raw_data, size_t raw_data_size, char **out, size_t *out_size) {
-    auto status = this->find(_db, tp, index_position, raw_data, raw_data_size);
-    if (status != 1) {
-        return status;
-    }
-
-    *out = find_buffer.data();
-    *out_size = find_buffer.size();
-    return 1;
 }

@@ -596,12 +596,17 @@ string chain_proxy::get_scheduled_transactions() {
     return fc::json::to_string(result, fc::time_point::maximum());
 }
 
-string chain_proxy::get_scheduled_transaction(const unsigned __int128 sender_id, string& sender) {
-    // auto& generated_transaction_idx = c->db().get_index<generated_transaction_multi_index>();
-    const auto* gto = c->db().find<generated_transaction_object,by_sender_id>(boost::make_tuple(account_name(sender), sender_id));
-    if ( gto ) {
-        return fc::json::to_string(*gto, fc::time_point::maximum());
-    }
+string chain_proxy::get_scheduled_transaction(const char *sender_id, size_t sender_id_size, string& sender) {
+    try {
+        FC_ASSERT(sender_id_size == 16, "sender_id should be 16 bytes");
+        unsigned __int128 _sender_id;
+        memcpy(&_sender_id, sender_id, 16);
+        // auto& generated_transaction_idx = c->db().get_index<generated_transaction_multi_index>();
+        const auto* gto = c->db().find<generated_transaction_object,by_sender_id>(boost::make_tuple(account_name(sender), _sender_id));
+        if ( gto ) {
+            return fc::json::to_string(*gto, fc::time_point::maximum());
+        }
+    } CATCH_AND_LOG_EXCEPTION();
     return "";
 }
 

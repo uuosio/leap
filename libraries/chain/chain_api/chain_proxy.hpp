@@ -131,7 +131,7 @@ class chain_proxy {
         virtual bool push_block(void *block_log_ptr, uint32_t block_num);
         virtual bool push_raw_block(const vector<char>& raw_block);
         virtual string get_scheduled_transactions();
-        virtual string get_scheduled_transaction(const unsigned __int128 sender_id, string& sender);
+        virtual string get_scheduled_transaction(const char *sender_id, size_t sender_id_size, string& sender);
         virtual string push_scheduled_transaction(string& scheduled_tx_id, string& deadline, uint32_t billed_cpu_time_us);
 
         virtual bool pack_action_args(string& name, string& action, string& _args, vector<char>& result);
