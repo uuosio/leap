@@ -51,7 +51,7 @@ class ipyeos_proxy {
         virtual vm_api_proxy *get_vm_api_proxy();
         virtual database_proxy *new_database_proxy();
         virtual block_log_proxy *new_block_log_proxy(string& block_log_dir);
-        virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir);
+        virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
         virtual void chain_free(chain_proxy* api);
 
         virtual string extract_chain_id_from_snapshot(string& snapshot_dir);
@@ -75,8 +75,7 @@ class ipyeos_proxy {
         virtual string create_key(string &key_type);
         virtual string get_public_key(string &priv_key);
 
-        virtual void set_debug_producer_key(string &pub_key);
-        virtual string get_debug_producer_key();
+        virtual string get_debug_producer_key(void *id);
 
         virtual string sign_digest(string &digest, string &priv_key);
 

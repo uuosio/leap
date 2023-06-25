@@ -18,7 +18,6 @@ using namespace eosio::chain;
 
 
 static string last_error = "";
-static string s_set_debug_producer_key = "";
 
 string& get_last_error() {
     return last_error;
@@ -60,10 +59,10 @@ block_log_proxy *ipyeos_proxy::new_block_log_proxy(string& block_log_dir) {
     return new block_log_proxy(block_log_dir);
 }
 
-chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir) {
+chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key) {
     try {
         chain_proxy *proxy = new chain_proxy();
-        proxy->init(config, _genesis, chain_id, protocol_features_dir, snapshot_dir);
+        proxy->init(config, _genesis, chain_id, protocol_features_dir, snapshot_dir, debug_producer_key);
         chain_proxy_map[proxy->chain()] = proxy;
         return proxy;
     } CATCH_AND_LOG_EXCEPTION();
@@ -174,12 +173,13 @@ string ipyeos_proxy::sign_digest(string &digest, string &priv_key) {
     return "";
 }
 
-void ipyeos_proxy::set_debug_producer_key(string &pub_key) {
-    s_set_debug_producer_key = pub_key;
-}
-
-string ipyeos_proxy::get_debug_producer_key() {
-    return s_set_debug_producer_key;
+string ipyeos_proxy::get_debug_producer_key(void *id) {
+    for (auto& chain_proxy : chain_proxy_map) {
+        if ((void *)&chain_proxy.second->chain()->db() == id) {
+            return chain_proxy.second->get_debug_producer_key();
+        }
+    }
+    return "";
 }
 
 

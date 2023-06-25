@@ -211,13 +211,13 @@ struct pending_state {
    }
 };
 
-void init_debug(block_state_ptr head) {
+void init_debug(void *id, block_state_ptr head) {
    auto *proxy = get_ipyeos_proxy_ex();
    if (proxy == nullptr) {
       return;
    }
 
-   string pub_key = proxy->get_debug_producer_key();
+   string pub_key = proxy->get_debug_producer_key(id);
    if (pub_key.empty()) {
       return;
    }
@@ -698,7 +698,7 @@ struct controller_impl {
       }
       head = fork_db.head();
 
-      init_debug(head);
+      init_debug(&db, head);
 
       init(check_shutdown);
    }
@@ -951,7 +951,7 @@ struct controller_impl {
 
          head = std::make_shared<block_state>();
          static_cast<block_header_state&>(*head) = head_header_state;
-         init_debug(head);
+         init_debug(&db, head);
       }
 
       controller_index_set::walk_indices([this, &snapshot, &header]( auto utils ){

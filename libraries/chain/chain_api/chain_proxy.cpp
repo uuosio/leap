@@ -27,7 +27,8 @@ chain_proxy::chain_proxy() {
 chain_proxy::~chain_proxy() {
 }
 
-int chain_proxy::init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir) {
+int chain_proxy::init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key) {
+    this->set_debug_producer_key(debug_producer_key);
     cm = std::make_unique<chain_manager>(config, _genesis, chain_id, protocol_features_dir, snapshot_dir);
     this->cm->init();
     this->c = this->cm->c;
@@ -642,8 +643,9 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
 
 bool chain_proxy::push_raw_block(const vector<char>& raw_block) {
     try {
-        auto b = fc::raw::unpack<signed_block_ptr>(raw_block);
-        auto bsf = c->create_block_state_future(b->calculate_id(), b);
+        auto b = fc::raw::unpack<signed_block>(raw_block);
+        auto _b = std::make_shared<signed_block>(std::move(b));
+        auto bsf = c->create_block_state_future(_b->calculate_id(), _b);
         controller::block_report br;
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
             FC_ASSERT(false, "forked_branch_callback not implemented");
@@ -843,4 +845,12 @@ string chain_proxy::get_native_contract(const string& contract) {
         return "";
     }
     return itr->second->path;
+}
+
+void chain_proxy::set_debug_producer_key(string &pub_key) {
+    debug_public_key = pub_key;
+}
+
+string chain_proxy::get_debug_producer_key() {
+    return debug_public_key;
 }

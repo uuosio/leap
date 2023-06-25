@@ -36,7 +36,7 @@ class chain_proxy {
     public:
         chain_proxy();
         virtual ~chain_proxy();
-        virtual int init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir);
+        virtual int init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
         virtual int attach(eosio::chain::controller* c);
 
         virtual eosio::chain::controller* chain();
@@ -146,10 +146,15 @@ class chain_proxy {
         virtual bool call_native_contract(uint64_t receiver, uint64_t first_receiver, uint64_t action);
         virtual string get_native_contract(const string& contract);
         virtual bool set_native_contract(const string& contract, const string& native_contract_lib);
+
+        virtual void set_debug_producer_key(string &pub_key);
+        virtual string get_debug_producer_key();
+
     private:
         void load_abi(string& account);
 
     private:
+        string debug_public_key;
         std::unique_ptr<eosio::chain::chain_manager> cm;
         std::shared_ptr<eosio::chain::controller> c;
         std::shared_ptr<chain_rpc_api_proxy> _api_proxy;
@@ -160,11 +165,11 @@ class chain_proxy {
 };
 
 extern "C" {
-    typedef chain_proxy* (*fn_chain_new)(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir);
+    typedef chain_proxy* (*fn_chain_new)(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
     typedef void (*fn_chain_free)(chain_proxy* api);
     typedef void (*fn_init_chain_api)(fn_chain_new _init, fn_chain_free _free);
 
-    chain_proxy* chain_new(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir);
+    chain_proxy* chain_new(string& config, string& _genesis, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
     void chain_free(chain_proxy* api);
     void int_chain_api(fn_chain_new _init, fn_chain_free _free);
 }
