@@ -643,9 +643,9 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
 
 bool chain_proxy::push_raw_block(const vector<char>& raw_block) {
     try {
-        auto b = fc::raw::unpack<signed_block>(raw_block);
-        auto _b = std::make_shared<signed_block>(std::move(b));
-        auto bsf = c->create_block_state_future(_b->calculate_id(), _b);
+        auto b = std::make_shared<signed_block>();
+        fc::raw::unpack(raw_block.data(), raw_block.size(), *b);
+        auto bsf = c->create_block_state_future(b->calculate_id(), b);
         controller::block_report br;
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
             FC_ASSERT(false, "forked_branch_callback not implemented");
