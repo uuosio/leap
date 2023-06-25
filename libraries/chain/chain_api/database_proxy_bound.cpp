@@ -318,10 +318,10 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, const char *raw_dat
     return -2;
 }
 
-int32_t database_proxy::lower_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char> &out) {
+int32_t database_proxy::lower_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     return bound<0>(db, tp, index_position, raw_data, size, out);
 }
 
-int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char> &out) {
+int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     return bound<1>(db, tp, index_position, raw_data, size, out);
 }

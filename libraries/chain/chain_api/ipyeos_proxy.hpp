@@ -80,6 +80,9 @@ class ipyeos_proxy {
 
         virtual string sign_digest(string &digest, string &priv_key);
 
+        virtual bool base58_to_bytes(const string& s, vector<char>& out);
+        virtual bool bytes_to_base58(const char* data, size_t data_size, string& out);
+
         fn_new_chain_api new_chain_api = nullptr;
 
         eos_cb *cb;

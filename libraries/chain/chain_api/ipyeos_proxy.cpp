@@ -181,3 +181,20 @@ void ipyeos_proxy::set_debug_producer_key(string &pub_key) {
 string ipyeos_proxy::get_debug_producer_key() {
     return s_set_debug_producer_key;
 }
+
+
+bool ipyeos_proxy::base58_to_bytes(const string& s, vector<char>& out) {
+    try {
+        out = fc::from_base58(s);
+        return true;
+    } CATCH_AND_LOG_EXCEPTION();
+    return false;
+}
+
+bool ipyeos_proxy::bytes_to_base58( const char* data, size_t data_size, string& out) {
+    try {
+        out = fc::to_base58(data, data_size, fc::yield_function_t());
+        return true;
+    } CATCH_AND_LOG_EXCEPTION();
+    return false;
+}
