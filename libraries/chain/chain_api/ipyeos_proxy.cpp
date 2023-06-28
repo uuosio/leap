@@ -43,6 +43,14 @@ ipyeos_proxy::ipyeos_proxy(eos_cb *cb) {
 ipyeos_proxy::~ipyeos_proxy() {
 }
 
+transaction_proxy *ipyeos_proxy::get_transaction_proxy() {
+    static transaction_proxy *proxy = nullptr;
+    if (!proxy) {
+        proxy = new transaction_proxy();
+    }
+    return proxy;
+}
+
 apply_context_proxy *ipyeos_proxy::get_apply_context_proxy() {
     return _apply_context_proxy.get();
 }

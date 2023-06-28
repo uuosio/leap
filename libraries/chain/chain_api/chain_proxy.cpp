@@ -532,12 +532,12 @@ string chain_proxy::get_scheduled_producer(string& _block_time) {
     return fc::json::to_string(producer, fc::time_point::maximum());
 }
 
-void chain_proxy::gen_transaction(bool json, string& _actions, string& expiration, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result) {
+void chain_proxy::gen_transaction(bool json, string& _actions, int64_t expiration, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result) {
     try {
         signed_transaction trx;
         auto actions = fc::json::from_string(_actions).as<vector<eosio::chain::action>>();
         trx.actions = std::move(actions);
-        trx.expiration = fc::time_point_sec::from_iso_string(expiration);
+        trx.expiration = time_point_sec(expiration/1000000);
         eosio::chain::block_id_type id(reference_block_id);
         trx.set_reference_block(id);
         trx.max_net_usage_words = 0;

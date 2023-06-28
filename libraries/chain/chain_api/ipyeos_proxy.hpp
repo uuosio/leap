@@ -6,6 +6,7 @@
 #include <memory>
 #include <filesystem>
 
+#include "transaction_proxy.hpp"
 #include "chain_proxy.hpp"
 #include "database_proxy.hpp"
 #include "block_log_proxy.hpp"
@@ -48,6 +49,7 @@ class ipyeos_proxy {
         virtual ~ipyeos_proxy();
 
         virtual apply_context_proxy *get_apply_context_proxy();
+        virtual transaction_proxy *get_transaction_proxy();
         virtual vm_api_proxy *get_vm_api_proxy();
         virtual database_proxy *new_database_proxy();
         virtual block_log_proxy *new_block_log_proxy(string& block_log_dir);

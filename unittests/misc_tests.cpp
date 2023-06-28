@@ -1349,6 +1349,14 @@ BOOST_AUTO_TEST_CASE(key_value_data_index_test) {
    FC_ASSERT(idx.size() == 2, "bad size");
 }
 
+BOOST_AUTO_TEST_CASE(private_key_test) {
+   fc::crypto::private_key pk = fc::crypto::private_key::generate();
+   auto v = fc::raw::pack(pk);
+   ilog("++++${n}", ("n", fc::to_hex(v)));
+   FC_ASSERT(pk == fc::raw::unpack<fc::crypto::private_key>(v.data(), v.size()), "invalid private key");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace eosio
