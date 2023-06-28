@@ -4,7 +4,6 @@
 #include <eosio/chain/types.hpp>
 #include <eosio/chain/thread_utils.hpp>
 #include <eosio/testing/tester.hpp>
-
 #include <fc/io/json.hpp>
 #include <fc/log/logger_config.hpp>
 #include <appbase/application.hpp>
@@ -19,6 +18,8 @@ using namespace eosio::testing;
 
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
+
+#include <key_value_data_index.hpp>
 
 struct base_reflect : fc::reflect_init {
    int bv = 0;
@@ -1327,6 +1328,25 @@ BOOST_AUTO_TEST_CASE(test_unpack_tuple) {
       // FC_ASSERT(std::get<0>(key) == 0, "bad value");
       // FC_ASSERT(std::get<1>(key) == 0, "bad value");
    }
+}
+
+BOOST_AUTO_TEST_CASE(key_value_data_index_test) {
+   key_value_data_index idx;
+   idx.emplace(key_value_data{1, {1, 2, 3}, {1, 2, 3}});
+   idx.emplace(key_value_data{1, {2, 3, 4}, {1, 2, 3}});
+   idx.find(1);
+   idx.find(std::make_tuple(1, std::vector<uint64_t>{1, 2, 3}));
+   auto itr = idx.lower_bound(1);
+   FC_ASSERT(itr != idx.end(), "bad value");
+   ilog("++++${n}", ("n", itr->first_key));
+   
+   itr = idx.lower_bound(std::make_tuple(1, std::vector<uint64_t>{2, 0, 5}));
+   FC_ASSERT(itr != idx.end(), "bad iterator");
+   FC_ASSERT(itr->first_key == 1, "bad value");
+   FC_ASSERT(!!(itr->other_key == std::vector<uint64_t>{2, 3, 4}), "bad value");
+
+   ilog("++++${n}", ("n", itr->first_key));
+   FC_ASSERT(idx.size() == 2, "bad size");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

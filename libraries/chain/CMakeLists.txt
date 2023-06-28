@@ -143,6 +143,7 @@ add_library( eosio_chain
               chain_api/database_proxy_modify.cpp
               chain_api/database_proxy_create.cpp
               chain_api/block_log_proxy.cpp
+              chain_api/key_value_data_index.cpp
 
              ${CHAIN_EOSVMOC_SOURCES}
              ${CHAIN_EOSVM_SOURCES}
