@@ -191,8 +191,8 @@ uint32_t chain_proxy::head_block_num() {
     return c->head_block_num();
 }
 
-string chain_proxy::head_block_time() {
-    return c->head_block_time().to_iso_string();
+int64_t chain_proxy::head_block_time() {
+    return c->head_block_time().time_since_epoch().count();
 }
 
 string chain_proxy::head_block_id() {
@@ -212,13 +212,11 @@ string chain_proxy::head_block_state() {
 }
 
 uint32_t chain_proxy::fork_db_head_block_num() {
-    return 0;
-    // return c->fork_db_head_block_num();
+    return c->fork_db_head_block_num();
 }
 
 string chain_proxy::fork_db_head_block_id() {
-    return "";
-    // return c->fork_db_head_block_id().str();
+    return c->fork_db_head_block_id().str();
 }
 
 string chain_proxy::fork_db_head_block_time() {

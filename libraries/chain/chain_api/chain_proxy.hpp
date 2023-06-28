@@ -66,7 +66,7 @@ class chain_proxy {
         virtual void set_action_blacklist(string& params);
         virtual void set_key_blacklist(string& params);
         virtual uint32_t head_block_num();
-        virtual string head_block_time();
+        virtual int64_t head_block_time();
         virtual string head_block_id();
         virtual string head_block_producer();
         virtual string head_block_header();
