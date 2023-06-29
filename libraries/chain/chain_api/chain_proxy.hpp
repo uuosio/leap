@@ -45,7 +45,7 @@ class chain_proxy {
 
         virtual void say_hello();
 
-        virtual void id(string& chain_id);
+        virtual void chain_id(string& result);
         virtual int start_block(string& _time, uint16_t confirm_block_count, string& _new_features);
         virtual int abort_block();
         virtual bool startup(bool initdb);
@@ -71,8 +71,12 @@ class chain_proxy {
         virtual string head_block_producer();
         virtual string head_block_header();
         virtual string head_block_state();
+        virtual uint32_t earliest_available_block_num();
+        virtual int64_t last_irreversible_block_time();
+
         virtual uint32_t fork_db_head_block_num();
         virtual string fork_db_head_block_id();
+
         virtual string fork_db_head_block_time();
         virtual string fork_db_head_block_producer();
         virtual uint32_t fork_db_pending_head_block_num();

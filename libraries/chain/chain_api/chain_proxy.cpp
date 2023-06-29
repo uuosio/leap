@@ -61,9 +61,9 @@ void chain_proxy::say_hello() {
     printf("hello,world from chain_proxy\n");
 }
 
-void chain_proxy::id(string& chain_id) {
+void chain_proxy::chain_id(string& result) {
     try {
-        chain_id = c->get_chain_id().str();
+        result = c->get_chain_id().str();
     } CATCH_AND_LOG_EXCEPTION();
 }
 
@@ -209,6 +209,14 @@ string chain_proxy::head_block_header() {
 
 string chain_proxy::head_block_state() {
     return fc::json::to_string(c->head_block_state(), fc::time_point::maximum());
+}
+
+uint32_t chain_proxy::earliest_available_block_num() {
+    return c->earliest_available_block_num();
+}
+
+int64_t chain_proxy::last_irreversible_block_time() {
+    return c->last_irreversible_block_time().time_since_epoch().count();
 }
 
 uint32_t chain_proxy::fork_db_head_block_num() {
@@ -631,7 +639,7 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
             FC_ASSERT(false, "forked_branch_callback not implemented");
         }, []( const transaction_id_type& id ) {
-            FC_ASSERT(false, "trx_meta_cache_lookup not implemented");
+            elog("trx_meta_cache_lookup ${id}", ("id", id));
             return nullptr;
         } );
         return true;
@@ -648,7 +656,7 @@ bool chain_proxy::push_raw_block(const vector<char>& raw_block) {
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
             FC_ASSERT(false, "forked_branch_callback not implemented");
         }, []( const transaction_id_type& id ) {
-            FC_ASSERT(false, "trx_meta_cache_lookup not implemented");
+            elog("trx_meta_cache_lookup ${id}", ("id", id));
             return nullptr;
         } );
         return true;
