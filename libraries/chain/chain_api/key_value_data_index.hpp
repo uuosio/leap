@@ -38,7 +38,7 @@ struct key_value_data {
 
 struct key_value_less {
     bool operator()( const vector<uint64_t>& lhs, const vector<uint64_t>& rhs ) const {
-        for (int i=0; i<lhs.size(); i++) {
+        for (size_t i=0; i<lhs.size(); i++) {
             if (lhs[i] < rhs[i]) {
                 return true;
             } else if (lhs[i] > rhs[i]) {

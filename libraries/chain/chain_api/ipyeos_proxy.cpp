@@ -64,7 +64,10 @@ database_proxy *ipyeos_proxy::new_database_proxy() {
 }
 
 block_log_proxy *ipyeos_proxy::new_block_log_proxy(string& block_log_dir) {
-    return new block_log_proxy(block_log_dir);
+    try {
+        return new block_log_proxy(block_log_dir);
+    } CATCH_AND_LOG_EXCEPTION();
+    return nullptr;
 }
 
 chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key) {
