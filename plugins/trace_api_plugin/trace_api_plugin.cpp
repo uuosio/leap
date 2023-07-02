@@ -11,6 +11,9 @@
 
 #include <boost/signals2/connection.hpp>
 
+#include "ipyeos_proxy.hpp"
+#include "chain_macro.hpp"
+
 using namespace eosio::trace_api;
 using namespace eosio::trace_api::configuration_utils;
 using boost::signals2::scoped_connection;
@@ -478,4 +481,116 @@ void trace_api_rpc_plugin::handle_sighup() {
    fc::logger::update( logger_name, _log );
 }
 
+}
+
+class _trace_api_proxy {
+public:
+   _trace_api_proxy(eosio::chain::controller& chain, string& trace_dir, uint32_t slice_stride, int32_t _minimum_irreversible_history_blocks, int32_t _minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride) {
+      auto log_exceptions_and_shutdown = [](const exception_with_context& e) {
+         log_exception(e, fc::log_level::error);
+         app().quit();
+         throw yield_exception("shutting down");
+      };
+
+      if (_minimum_irreversible_history_blocks > 0) {
+         minimum_irreversible_history_blocks = _minimum_irreversible_history_blocks;
+      }
+
+      if (_minimum_uncompressed_irreversible_history_blocks > 0) {
+         minimum_uncompressed_irreversible_history_blocks = _minimum_uncompressed_irreversible_history_blocks;
+      }
+
+      auto store = std::make_shared<store_provider>(
+         trace_dir,
+         slice_stride,
+         minimum_irreversible_history_blocks,
+         minimum_uncompressed_irreversible_history_blocks,
+         compression_seek_point_stride
+      );
+
+      extraction = std::make_shared<chain_extraction_t>(shared_store_provider<store_provider>(store), log_exceptions_and_shutdown);
+
+      // auto& chain = app().find_plugin<chain_plugin>()->chain();
+
+      applied_transaction_connection.emplace(
+         chain.applied_transaction.connect([this](std::tuple<const chain::transaction_trace_ptr&, const chain::packed_transaction_ptr&> t) {
+            emit_killer([&](){
+               extraction->signal_applied_transaction(std::get<0>(t), std::get<1>(t));
+            });
+         }));
+
+      block_start_connection.emplace(
+            chain.block_start.connect([this](uint32_t block_num) {
+               emit_killer([&](){
+                  extraction->signal_block_start(block_num);
+               });
+            }));
+
+      accepted_block_connection.emplace(
+         chain.accepted_block.connect([this](const chain::block_state_ptr& p) {
+            emit_killer([&](){
+               extraction->signal_accepted_block(p);
+            });
+         }));
+
+      irreversible_block_connection.emplace(
+         chain.irreversible_block.connect([this](const chain::block_state_ptr& p) {
+            emit_killer([&](){
+               extraction->signal_irreversible_block(p);
+            });
+         }));
+
+      std::shared_ptr<abi_data_handler> data_handler = std::make_shared<abi_data_handler>([](const exception_with_context& e){
+         log_exception(e, fc::log_level::debug);
+      });
+
+      req_handler = std::make_shared<request_handler_t>(
+         shared_store_provider<store_provider>(store),
+         abi_data_handler::shared_provider(data_handler),
+         [](const std::string& msg ) {
+            fc_dlog( _log, msg );
+         }
+      );
+   }
+
+   bool get_block_trace(uint32_t block_num, string& result) {
+      auto resp = req_handler->get_block_trace(block_num);
+      result = fc::json::to_string(resp, fc::time_point::maximum());
+      return true;
+   }
+
+private:
+      std::optional<scoped_connection>                            applied_transaction_connection;
+      std::optional<scoped_connection>                            block_start_connection;
+      std::optional<scoped_connection>                            accepted_block_connection;
+      std::optional<scoped_connection>                            irreversible_block_connection;
+
+      std::optional<uint32_t> minimum_irreversible_history_blocks;
+      std::optional<uint32_t> minimum_uncompressed_irreversible_history_blocks;
+
+      using chain_extraction_t = chain_extraction_impl_type<shared_store_provider<store_provider>>;
+      using request_handler_t = request_handler<shared_store_provider<store_provider>, abi_data_handler::shared_provider>;
+      std::shared_ptr<chain_extraction_t> extraction;
+      std::shared_ptr<request_handler_t> req_handler;
+};
+
+trace_api_proxy::trace_api_proxy(eosio::chain::controller *chain, string& trace_dir, uint32_t slice_stride, int32_t minimum_irreversible_history_blocks, int32_t minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride) {
+   FC_ASSERT(chain != nullptr, "chain shoud not be null");
+   _my = new _trace_api_proxy(*chain, trace_dir, slice_stride, minimum_irreversible_history_blocks, minimum_uncompressed_irreversible_history_blocks, compression_seek_point_stride);
+}
+
+trace_api_proxy::~trace_api_proxy() {
+
+}
+
+bool trace_api_proxy::get_block_trace(uint32_t block_num, string& result) {
+   try {
+      return _my->get_block_trace(block_num, result);
+   } CATCH_AND_LOG_EXCEPTION();
+   return false;
+}
+
+
+trace_api_proxy *eos_cb::new_trace_api_proxy(void *chain, string& trace_dir, uint32_t slice_stride, int32_t minimum_irreversible_history_blocks, int32_t minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride) {
+   return new trace_api_proxy(static_cast<eosio::chain::controller*>(chain), trace_dir, slice_stride, minimum_irreversible_history_blocks, minimum_uncompressed_irreversible_history_blocks, compression_seek_point_stride);
 }

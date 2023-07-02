@@ -5,7 +5,6 @@
 extern "C" {
     void ipyeos_init_proxy(eos_cb* cb);
     void ipyeos_init_chain(eos_cb* cb);
-    void init_new_chain_api();
 
     ipyeos_proxy *get_ipyeos_proxy();
     ipyeos_proxy *get_ipyeos_proxy_ex();

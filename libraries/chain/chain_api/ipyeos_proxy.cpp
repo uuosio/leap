@@ -74,7 +74,7 @@ chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& c
     try {
         chain_proxy *proxy = new chain_proxy();
         proxy->init(config, _genesis, chain_id, protocol_features_dir, snapshot_dir, debug_producer_key);
-        chain_proxy_map[proxy->chain()] = proxy;
+        chain_proxy_map[proxy->get_controller()] = proxy;
         return proxy;
     } CATCH_AND_LOG_EXCEPTION();
     return nullptr;
@@ -85,7 +85,7 @@ void ipyeos_proxy::chain_free(chain_proxy* c) {
         if (!c) {
             return;
         }
-        auto itr = chain_proxy_map.find(c->chain());
+        auto itr = chain_proxy_map.find(c->get_controller());
         if (itr != chain_proxy_map.end()) {
             chain_proxy_map.erase(itr);
         }
@@ -186,7 +186,7 @@ string ipyeos_proxy::sign_digest(string &digest, string &priv_key) {
 
 string ipyeos_proxy::get_debug_producer_key(void *id) {
     for (auto& chain_proxy : chain_proxy_map) {
-        if ((void *)&chain_proxy.second->chain()->db() == id) {
+        if ((void *)&chain_proxy.second->get_controller()->db() == id) {
             return chain_proxy.second->get_debug_producer_key();
         }
     }

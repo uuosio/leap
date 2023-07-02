@@ -2755,10 +2755,6 @@ int chain_rpc_api_proxy::abi_bin_to_json(string& params, string& result) {
    return 0;
 }
 
-chain_rpc_api_proxy *new_chain_api_proxy(eosio::chain::controller *c) {
+chain_rpc_api_proxy *eos_cb::new_chain_api(eosio::chain::controller *c) {
    return new chain_rpc_api_proxy(c);
-}
-
-extern "C" void init_new_chain_api() {
-   get_ipyeos_proxy()->new_chain_api = new_chain_api_proxy;
 }

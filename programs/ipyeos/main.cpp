@@ -120,7 +120,7 @@ static void initialize_logging()
 }
 
 extern "C" int start_python(int argc, char **argv);
-extern "C" void init_new_chain_api();
+
 int eos_init(int argc, char** argv);
 int eos_exec();
 int eos_exec_once();
@@ -234,7 +234,6 @@ int main(int argc, char** argv)
 
    eos_cb *cb = new eos_cb();
    ipyeos_init_chain(cb);
-   init_new_chain_api();
    return start_python(argc, argv);
 }
 

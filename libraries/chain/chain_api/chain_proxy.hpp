@@ -39,7 +39,7 @@ class chain_proxy {
         virtual int init(string& config, string& _genesis, string& chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
         virtual int attach(eosio::chain::controller* c);
 
-        virtual eosio::chain::controller* chain();
+        virtual eosio::chain::controller* get_controller();
         virtual const chainbase::database* get_database();
         virtual chain_rpc_api_proxy* api_proxy();
 

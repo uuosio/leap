@@ -9,6 +9,7 @@
 #include "transaction_proxy.hpp"
 #include "chain_proxy.hpp"
 #include "database_proxy.hpp"
+#include "trace_api_proxy.hpp"
 #include "block_log_proxy.hpp"
 #include "apply_context_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
@@ -24,8 +25,7 @@ namespace eosio {
 
 class chain_rpc_api_proxy;
 class apply_context_proxy;
-
-typedef chain_rpc_api_proxy *(*fn_new_chain_api)(eosio::chain::controller *c);
+class trace_api_proxy;
 
 class eos_cb {
 public:
@@ -36,8 +36,11 @@ public:
     virtual int exec();
     virtual int exec_once();
     virtual void quit();
-    virtual void* post(void* (*fn)(void *), void *args);
+    virtual void *post(void *(*fn)(void *), void *args);
     virtual void *get_database();
+
+    virtual chain_rpc_api_proxy *new_chain_api(eosio::chain::controller *c);
+    virtual trace_api_proxy *new_trace_api_proxy(void *chain, string& trace_dir, uint32_t slice_stride, int32_t minimum_irreversible_history_blocks, int32_t minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride);
 
     virtual void set_log_level(string& logger_name, int level);
     virtual int get_log_level(string& logger_name);
@@ -83,8 +86,6 @@ class ipyeos_proxy {
 
         virtual bool base58_to_bytes(const string& s, vector<char>& out);
         virtual bool bytes_to_base58(const char* data, size_t data_size, string& out);
-
-        fn_new_chain_api new_chain_api = nullptr;
 
         eos_cb *cb;
     private:
