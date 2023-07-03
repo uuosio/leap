@@ -10,7 +10,7 @@ class controller;
 
 class chain_manager {
     public:
-        chain_manager(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir);
+        chain_manager(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_file);
         ~chain_manager();
         void init();
         bool startup(bool init_db);
@@ -20,7 +20,7 @@ class chain_manager {
         controller::config cfg;
         genesis_state genesis;
         chain_id_type chain_id = chain_id_type::empty_chain_id();
-        string snapshot_dir;
+        string snapshot_file;
         string protocol_features_dir;
         bool _shutdown = false;
 };

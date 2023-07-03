@@ -276,7 +276,7 @@ protocol_feature_set _initialize_protocol_features( const std::filesystem::path&
    return pfs;
 }
 
-chain_manager::chain_manager(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir) {
+chain_manager::chain_manager(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_file) {
    this->cfg = fc::json::from_string(config).as<eosio::chain::controller::config>();
 
    FC_ASSERT(!(_genesis.empty() && _chain_id.empty()), "genesis and chain_id can not be empty at the same time");
@@ -291,7 +291,7 @@ chain_manager::chain_manager(string& config, string& _genesis, string& _chain_id
       this->chain_id = this->genesis.compute_chain_id();
    }
 
-   this->snapshot_dir = snapshot_dir;
+   this->snapshot_file = snapshot_file;
    this->protocol_features_dir = protocol_features_dir;
 }
 
@@ -314,8 +314,8 @@ bool chain_manager::startup(bool init_db) {
    auto _shutdown = [](){ return true; };
    auto _check_shutdown = [&](){ return _shutdown; };
 
-   if (snapshot_dir.size()) {
-      auto infile = std::ifstream(snapshot_dir, (std::ios::in | std::ios::binary));
+   if (snapshot_file.size()) {
+      auto infile = std::ifstream(snapshot_file, (std::ios::in | std::ios::binary));
       auto reader = std::make_shared<istream_snapshot_reader>(infile);
       c->startup(_shutdown, _check_shutdown, reader);
       infile.close();
