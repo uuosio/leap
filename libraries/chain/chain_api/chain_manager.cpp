@@ -311,8 +311,8 @@ void chain_manager::shutdown() {
 }
 
 bool chain_manager::startup(bool init_db) {
-   auto _shutdown = [](){ return true; };
-   auto _check_shutdown = [&](){ return _shutdown; };
+   auto _shutdown = [](){ return false; };
+   auto _check_shutdown = [&](){ return false; };
 
    if (snapshot_file.size()) {
       auto infile = std::ifstream(snapshot_file, (std::ios::in | std::ios::binary));
