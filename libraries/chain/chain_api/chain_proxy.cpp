@@ -637,9 +637,9 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
         auto bsf = c->create_block_state_future(b->calculate_id(), b);
         controller::block_report br;
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
-            FC_ASSERT(false, "forked_branch_callback not implemented");
+            elog("forked_branch_callback not implemented");
         }, []( const transaction_id_type& id ) {
-            elog("trx_meta_cache_lookup ${id}", ("id", id));
+            // elog("trx_meta_cache_lookup ${id}", ("id", id));
             return nullptr;
         } );
         return true;
@@ -654,9 +654,9 @@ bool chain_proxy::push_raw_block(const vector<char>& raw_block) {
         auto bsf = c->create_block_state_future(b->calculate_id(), b);
         controller::block_report br;
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
-            FC_ASSERT(false, "forked_branch_callback not implemented");
+            elog("forked_branch_callback not implemented");
         }, []( const transaction_id_type& id ) {
-            elog("trx_meta_cache_lookup ${id}", ("id", id));
+            // elog("trx_meta_cache_lookup ${id}", ("id", id));
             return nullptr;
         } );
         return true;

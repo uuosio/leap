@@ -2526,8 +2526,11 @@ struct controller_impl {
             break;
          }
       }
-      dlog("removed ${n} expired transactions of the ${t} input dedup list, pending block time ${pt}",
-           ("n", num_removed)("t", total)("pt", now));
+
+      if (num_removed > 0) {
+         dlog("removed ${n} expired transactions of the ${t} input dedup list, pending block time ${pt}",
+            ("n", num_removed)("t", total)("pt", now));
+      }
    }
 
    bool sender_avoids_whitelist_blacklist_enforcement( account_name sender )const {
