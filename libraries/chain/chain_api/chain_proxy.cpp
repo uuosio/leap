@@ -121,8 +121,11 @@ void chain_proxy::commit_block() {
 }
 
 string chain_proxy::get_block_id_for_num(uint32_t block_num ) {
-    auto id = c->get_block_id_for_num(block_num);
-    return id.str();
+    try {
+        auto id = c->get_block_id_for_num(block_num);
+        return id.str();
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 string chain_proxy::get_global_properties() {
