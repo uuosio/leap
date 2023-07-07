@@ -1,4 +1,4 @@
-v2.0.4 release
+v2.0.5 release
 
-1. Improve setting debug producer key
-2. implemented transaction proxy
+1. Export logging interfaces to python
+2. Fix replay
