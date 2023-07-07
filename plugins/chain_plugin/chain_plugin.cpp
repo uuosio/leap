@@ -41,6 +41,10 @@ eosio::chain::deep_mind_handler _deep_mind_log;
 
 namespace eosio {
 
+   fc::logger& get_deep_mind_logger() {
+      return _deep_mind_log.get_logger();
+   }
+
 //declare operator<< and validate function for read_mode in the same namespace as read_mode itself
 namespace chain {
 
@@ -2757,4 +2761,10 @@ int chain_rpc_api_proxy::abi_bin_to_json(string& params, string& result) {
 
 chain_rpc_api_proxy *eos_cb::new_chain_api(eosio::chain::controller *c) {
    return new chain_rpc_api_proxy(c);
+}
+
+void eos_cb::enable_deep_mind(void *controller) {
+   FC_ASSERT(controller != nullptr, "controller is null");
+   auto _c = (eosio::chain::controller*)controller;
+   _c->enable_deep_mind(&_deep_mind_log);
 }

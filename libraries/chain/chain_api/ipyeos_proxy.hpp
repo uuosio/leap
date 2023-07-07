@@ -35,6 +35,8 @@ public:
     virtual int init(int argc, char** argv);
     virtual int exec();
     virtual int exec_once();
+    virtual void initialize_logging(string& config_path);
+    virtual void print_log(int level, string& logger_name, string& message);
     virtual void quit();
     virtual void *post(void *(*fn)(void *), void *args);
     virtual void *get_database();
@@ -44,6 +46,8 @@ public:
 
     virtual void set_log_level(string& logger_name, int level);
     virtual int get_log_level(string& logger_name);
+
+    virtual void enable_deep_mind(void *controller);
 };
 
 class ipyeos_proxy {

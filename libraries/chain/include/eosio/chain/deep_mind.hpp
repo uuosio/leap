@@ -49,6 +49,8 @@ public:
       bool zero_elapsed = false; // if true, the elapsed field of transaction and action traces is always set to 0 (for reproducibility)
    };
 
+   fc::logger& get_logger();
+
    void update_config(deep_mind_config config);
 
    void update_logger(const std::string& logger_name);

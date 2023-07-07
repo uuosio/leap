@@ -26,6 +26,10 @@ namespace {
 
 namespace eosio::chain {
 
+   fc::logger& deep_mind_handler::get_logger() {
+      return _logger;
+   }
+
    void deep_mind_handler::update_config(deep_mind_config config)
    {
       _config = std::move(config);

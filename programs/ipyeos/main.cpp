@@ -43,6 +43,16 @@ namespace eosio {
 
    fc::logger& get_trace_api_logger();// trace_api
    fc::logger& get_state_history_logger();// state_history
+   fc::logger& get_deep_mind_logger();// deep_mind
+
+   fc::logger& get_producer_plugin_logger();
+   fc::logger& get_trx_successful_trace_log();
+   fc::logger& get_trx_failed_trace_log();
+   fc::logger& get_trx_trace_success_log();
+   fc::logger& get_trx_trace_failure_log();
+   fc::logger& get_trx_log();
+   fc::logger& get_transient_trx_successful_trace_log();
+   fc::logger& get_transient_trx_failed_trace_log();
 }
 
 namespace detail {
@@ -103,20 +113,62 @@ static void logging_conf_handler()
    fc::log_config::initialize_appenders();
 }
 
-static void initialize_logging()
+static void _initialize_logging(string& config_path)
 {
-   auto config_path = app().get_logging_conf();
-   if(std::filesystem::exists(config_path))
+   //initialize logger_map in log_config
+   fc::logger::get("deep-mind");
+   fc::logger::get("net_plugin_impl");
+   fc::logger::get("http_plugin");
+   fc::logger::get("trace_api");
+   fc::logger::get("state_history");
+
+
+   fc::logger::get("producer_plugin");
+   fc::logger::get("transaction_success_tracing");
+   fc::logger::get("transaction_failure_tracing");
+   fc::logger::get("transaction_trace_success");
+   fc::logger::get("transaction_trace_failure");
+   fc::logger::get("transaction");
+   fc::logger::get("transient_trx_success_tracing");
+   fc::logger::get("transient_trx_failure_tracing");
+
+   if(std::filesystem::exists(config_path)) {
+      elog("Found logging configuration file at ${p}, using settings from this file.", ("p", config_path));
      fc::configure_logging(config_path); // intentionally allowing exceptions to escape
+   }
    else {
       auto cfg = fc::logging_config::default_config();
-
+      elog("No logging configuration file found at ${p}, using default logging settings.", ("p", config_path));
       fc::configure_logging( ::detail::add_deep_mind_logger(cfg) );
    }
 
    fc::log_config::initialize_appenders();
 
    app().set_sighup_callback(logging_conf_handler);
+
+
+   fc::logger::update("producer_plugin", eosio::get_producer_plugin_logger());
+   fc::logger::update("transaction_success_tracing", get_trx_successful_trace_log());
+   fc::logger::update("transaction_failure_tracing", get_trx_failed_trace_log());
+   fc::logger::update("transaction_trace_success", get_trx_trace_success_log());
+   fc::logger::update("transaction_trace_failure", get_trx_trace_failure_log());
+   fc::logger::update("transaction", get_trx_log());
+   fc::logger::update("transient_trx_success_tracing", get_transient_trx_successful_trace_log());
+   fc::logger::update("transient_trx_failure_tracing", get_transient_trx_failed_trace_log());
+
+   fc::logger::update("deep-mind", eosio::get_deep_mind_logger());
+   fc::logger::update("net_plugin_impl", eosio::get_net_plugin_logger());
+   fc::logger::update("http_plugin", eosio::get_http_plugin_logger());
+   fc::logger::update("trace_api", eosio::get_trace_api_logger());
+   fc::logger::update("state_history", eosio::get_state_history_logger());
+
+   elog("_initialize_logging");
+}
+
+static void initialize_logging()
+{
+   auto config_path = app().get_logging_conf().string();
+   _initialize_logging(config_path);
 }
 
 extern "C" int start_python(int argc, char **argv);
@@ -160,6 +212,34 @@ int eos_cb::exec_once() {
    return eos_exec_once();
 }
 
+void eos_cb::initialize_logging(string& config_path) {
+   ::_initialize_logging(config_path);
+}
+
+// all, 
+// debug, 
+// info, 
+// warn, 
+// error, 
+// off 
+void eos_cb::print_log(int level, string& logger_name, string& message) {
+   auto _logger = fc::logger::get(logger_name);
+   if (_logger.is_enabled(fc::log_level(level))) {
+      if (level == 0)
+         _logger.log(FC_LOG_MESSAGE(all, message));
+      else if (level == 1)
+         _logger.log(FC_LOG_MESSAGE(debug, message));
+      else if (level == 2)
+         _logger.log(FC_LOG_MESSAGE(info, message));
+      else if (level == 3)
+         _logger.log(FC_LOG_MESSAGE(warn, message));
+      else if (level == 4)
+         _logger.log(FC_LOG_MESSAGE(error, message));
+      // else if (level == 5)
+      //    _logger->log(FC_LOG_MESSAGE(off, message));
+   }
+}
+
 void eos_cb::quit() {
    app_quit();
 }
@@ -173,35 +253,11 @@ void *eos_cb::get_database() {
 }
 
 void eos_cb::set_log_level(string& logger_name, int level) {
-   if (logger_name == "net_plugin_impl") {
-      eosio::get_net_plugin_logger().set_log_level(fc::log_level(level));
-   } else if (logger_name == "http_plugin") {
-      eosio::get_http_plugin_logger().set_log_level(fc::log_level(level)); 
-   } else if (logger_name == "producer_plugin") {
-      eosio::get_producer_plugin_logger().set_log_level(fc::log_level(level));
-   } else if (logger_name == "trace_api") {
-      eosio::get_trace_api_logger().set_log_level(fc::log_level(level));
-   } else if (logger_name == "state_history") {
-      eosio::get_state_history_logger().set_log_level(fc::log_level(level));
-   } else {
-      fc::logger::get(logger_name).set_log_level(fc::log_level(level));
-   }
+   fc::logger::get(logger_name).set_log_level(fc::log_level(level));
 }
 
 int eos_cb::get_log_level(string& logger_name) {
-   if (logger_name == "net_plugin_impl") {
-      return eosio::get_net_plugin_logger().get_log_level();
-   } else if (logger_name == "http_plugin") {
-      return eosio::get_http_plugin_logger().get_log_level();
-   } else if (logger_name == "producer_plugin") {
-      return eosio::get_producer_plugin_logger().get_log_level();
-   } else if (logger_name == "trace_api") {
-      return eosio::get_trace_api_logger().get_log_level();
-   } else if (logger_name == "state_history") {
-      return eosio::get_state_history_logger().get_log_level();
-   } else {
-      return fc::logger::get(logger_name).get_log_level();
-   }
+   return fc::logger::get(logger_name).get_log_level();
 }
 
 extern int main_cleos( int argc, char** argv );

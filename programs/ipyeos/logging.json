@@ -48,11 +48,26 @@
         "_network": "jungle"
       },
       "enabled": true
+    },{
+      "name": "deep-mind",
+      "type": "dmlog",
+      "args": {
+      },
+      "enabled": true
     }
   ],
-  "loggers": [{
+  "loggers": [
+    {
+      "name": "deep-mind",
+      "level": "info",
+      "enabled": true,
+      "additivity": false,
+      "appenders": [
+        "deep-mind"
+      ]
+    },{
       "name": "default",
-      "level": "debug",
+      "level": "info",
       "enabled": true,
       "additivity": false,
       "appenders": [

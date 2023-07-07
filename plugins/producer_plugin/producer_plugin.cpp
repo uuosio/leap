@@ -72,12 +72,6 @@ using std::vector;
 const std::string logger_name("producer_plugin");
 fc::logger        _log;
 
-namespace eosio {
-   fc::logger& get_producer_plugin_logger() {
-      return _log;
-   }
-}
-
 const std::string trx_successful_trace_logger_name("transaction_success_tracing");
 fc::logger        _trx_successful_trace_log;
 
@@ -100,6 +94,38 @@ const std::string transient_trx_failed_trace_logger_name("transient_trx_failure_
 fc::logger        _transient_trx_failed_trace_log;
 
 namespace eosio {
+
+   fc::logger& get_producer_plugin_logger() {
+      return _log;
+   }
+
+   fc::logger& get_trx_successful_trace_log() {
+      return _trx_successful_trace_log;
+   }
+
+   fc::logger& get_trx_failed_trace_log() {
+      return _trx_failed_trace_log;
+   }
+
+   fc::logger& get_trx_trace_success_log() {
+      return _trx_trace_success_log;
+   }
+
+   fc::logger& get_trx_trace_failure_log() {
+      return _trx_trace_failure_log;
+   }
+
+   fc::logger& get_trx_log() {
+      return _trx_log;
+   }
+
+   fc::logger& get_transient_trx_successful_trace_log() {
+      return _transient_trx_successful_trace_log;
+   }
+
+   fc::logger& get_transient_trx_failed_trace_log() {
+      return _transient_trx_failed_trace_log;
+   }
 
 static auto _producer_plugin = application::register_plugin<producer_plugin>();
 
