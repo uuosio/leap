@@ -139,10 +139,8 @@ int database_object_bound_by_composite_key(chainbase::database& db, fc::datastre
 
 
 template<int bound_type>
-int32_t bound(void *_db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
+int32_t bound(chainbase::database& db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     fc::datastream<const char*> bound_stream(raw_data, size);
-    auto& db = *static_cast<chainbase::database *>(_db);
-
     try {
         // name code, scope, table;
         // const auto* t_id = db.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple(code, scope, table));
@@ -318,10 +316,10 @@ int32_t bound(void *_db, int32_t tp, int32_t index_position, const char *raw_dat
     return -2;
 }
 
-int32_t database_proxy::lower_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
+int32_t database_proxy::lower_bound(int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     return bound<0>(db, tp, index_position, raw_data, size, out);
 }
 
-int32_t database_proxy::upper_bound(void *db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
+int32_t database_proxy::upper_bound(int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     return bound<1>(db, tp, index_position, raw_data, size, out);
 }

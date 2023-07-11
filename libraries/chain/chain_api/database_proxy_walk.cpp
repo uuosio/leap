@@ -89,13 +89,11 @@ int32_t database_object_walk(chainbase::database& db, fn_data_handler handler, v
         FC_ASSERT(0, "index position out of range"); \
     }
 
-int32_t database_proxy::walk(void *_db, int32_t tp, int32_t index_position) {
+int32_t database_proxy::walk(int32_t tp, int32_t index_position) {
     if (this->handler == nullptr) {
         elog("database handler not set");
         return -1;
     }
-
-    auto& db = *static_cast<chainbase::database *>(_db);
 
     try {
         // by_name account_name

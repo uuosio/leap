@@ -148,7 +148,7 @@ int32_t database_object_walk_range_by_composite_key(chainbase::database& db, fc:
 #define HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY(OBJECT_NAME, INDEX_POSITION, INDEX_NAME, ...) \
     HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_COMPOSITE_KEY_EX(OBJECT_NAME, OBJECT_NAME##_index, INDEX_POSITION, INDEX_NAME, __VA_ARGS__)
 
-int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position, const char *raw_lower_bound, size_t raw_lower_bound_size, const char *raw_upper_bound, size_t raw_upper_bound_size) {
+int32_t database_proxy::walk_range(int32_t tp, int32_t index_position, const char *raw_lower_bound, size_t raw_lower_bound_size, const char *raw_upper_bound, size_t raw_upper_bound_size) {
     try {
         if (this->handler == nullptr) {
             elog("database handler not set");
@@ -157,7 +157,6 @@ int32_t database_proxy::walk_range(void *_db, int32_t tp, int32_t index_position
 
         fc::datastream<const char*> lower_bound_stream(raw_lower_bound, raw_lower_bound_size);
         fc::datastream<const char*> upper_bound_stream(raw_upper_bound, raw_upper_bound_size);
-        auto& db = *static_cast<chainbase::database *>(_db);
 
         // by_name>, account_name
         HANDLE_DATABASE_OBJECT_WALK_RANGE_BY_ID(account)

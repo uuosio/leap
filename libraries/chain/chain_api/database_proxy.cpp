@@ -27,6 +27,22 @@ using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::chain::resource_limits;
 
+database_proxy::database_proxy(void *db_ptr): db(*static_cast<chainbase::database *>(db_ptr)) {
+
+}
+
+database_proxy::~database_proxy() {
+
+}
+
+uint64_t database_proxy::get_free_memory() {
+    return db.get_segment_manager()->get_free_memory();
+}
+
+uint64_t database_proxy::get_total_memory() {
+    return db.get_segment_manager()->get_size();
+}
+
 void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data) {
     this->handler = handler;
     this->custom_data = custom_data;
@@ -40,9 +56,7 @@ void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data
 #define DATABASE_OBJECT_ROW_COUNT(OBJECT_NAME) \
     DATABASE_OBJECT_ROW_COUNT_EX(OBJECT_NAME, OBJECT_NAME##_index)
 
-uint64_t database_proxy::row_count(void *_db, int32_t tp) {
-    auto& db = *static_cast<chainbase::database *>(_db);
-
+uint64_t database_proxy::row_count(int32_t tp) {
     DATABASE_OBJECT_ROW_COUNT(account)
     DATABASE_OBJECT_ROW_COUNT(account_metadata)
     DATABASE_OBJECT_ROW_COUNT(permission)

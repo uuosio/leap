@@ -87,9 +87,8 @@ using namespace eosio::chain::resource_limits;
         return 1; \
     }
 
-int32_t database_proxy::modify(void *_db, int32_t tp, int32_t index_position, const char *raw_key, size_t raw_key_size, const char *raw_data, size_t raw_data_size) {
+int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *raw_key, size_t raw_key_size, const char *raw_data, size_t raw_data_size) {
     fc::datastream<const char*> stream(raw_key, raw_key_size);
-    auto& db = *static_cast<chainbase::database *>(_db);
 
     try {
     //     // by_name>, account_name

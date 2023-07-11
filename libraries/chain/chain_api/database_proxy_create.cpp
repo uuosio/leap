@@ -48,8 +48,7 @@ using namespace eosio::chain::resource_limits;
         return 1; \
     }
 
-int32_t database_proxy::create(void *_db, int32_t tp, const char *raw_data, size_t raw_data_size) {
-    auto& db = *static_cast<chainbase::database *>(_db);
+int32_t database_proxy::create(int32_t tp, const char *raw_data, size_t raw_data_size) {
     try {
         CREATE_BEGIN(account)
             // account_name         name; //< name should not be changed within a chainbase modifier lambda

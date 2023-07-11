@@ -59,8 +59,8 @@ vm_api_proxy *ipyeos_proxy::get_vm_api_proxy() {
     return _apply_context_proxy->get_vm_api_proxy();
 }
 
-database_proxy *ipyeos_proxy::new_database_proxy() {
-    return new database_proxy();
+database_proxy *ipyeos_proxy::new_database_proxy(void *db_ptr) {
+    return new database_proxy(db_ptr);
 }
 
 block_log_proxy *ipyeos_proxy::new_block_log_proxy(string& block_log_dir) {

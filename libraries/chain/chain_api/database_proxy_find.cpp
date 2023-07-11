@@ -91,9 +91,8 @@ using namespace eosio::chain::resource_limits;
         FC_ASSERT(0, "HANDLE_CONTRACT_TABLE_OBJECT_FIND: invalid index position"); \
     }
 
-int32_t database_proxy::find(void *_db, int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
+int32_t database_proxy::find(int32_t tp, int32_t index_position, const char *raw_data, size_t size, vector<char>& out) {
     fc::datastream<const char*> stream(raw_data, size);
-    auto& db = *static_cast<chainbase::database *>(_db);
 
     try {
         // name code, scope, table;

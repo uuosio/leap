@@ -133,12 +133,12 @@ static void _initialize_logging(string& config_path)
    fc::logger::get("transient_trx_failure_tracing");
 
    if(std::filesystem::exists(config_path)) {
-      elog("Found logging configuration file at ${p}, using settings from this file.", ("p", config_path));
+      ilog("Found logging configuration file at ${p}, using settings from this file.", ("p", config_path));
      fc::configure_logging(config_path); // intentionally allowing exceptions to escape
    }
    else {
       auto cfg = fc::logging_config::default_config();
-      elog("No logging configuration file found at ${p}, using default logging settings.", ("p", config_path));
+      ilog("No logging configuration file found at ${p}, using default logging settings.", ("p", config_path));
       fc::configure_logging( ::detail::add_deep_mind_logger(cfg) );
    }
 
@@ -161,8 +161,6 @@ static void _initialize_logging(string& config_path)
    fc::logger::update("http_plugin", eosio::get_http_plugin_logger());
    fc::logger::update("trace_api", eosio::get_trace_api_logger());
    fc::logger::update("state_history", eosio::get_state_history_logger());
-
-   elog("_initialize_logging");
 }
 
 static void initialize_logging()
