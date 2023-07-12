@@ -59,6 +59,13 @@ vm_api_proxy *ipyeos_proxy::get_vm_api_proxy() {
     return _apply_context_proxy->get_vm_api_proxy();
 }
 
+snapshot_proxy *ipyeos_proxy::new_snapshot_proxy(void *chain) {
+    try {
+        return new snapshot_proxy(chain);
+    } CATCH_AND_LOG_EXCEPTION();
+    return nullptr;
+}
+
 database_proxy *ipyeos_proxy::new_database_proxy(void *db_ptr) {
     return new database_proxy(db_ptr);
 }

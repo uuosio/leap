@@ -11,6 +11,7 @@
 #include "database_proxy.hpp"
 #include "trace_api_proxy.hpp"
 #include "block_log_proxy.hpp"
+#include "snapshot_proxy.hpp"
 #include "apply_context_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
 #include "intrinsics.h"
@@ -58,6 +59,7 @@ class ipyeos_proxy {
         virtual apply_context_proxy *get_apply_context_proxy();
         virtual transaction_proxy *get_transaction_proxy();
         virtual vm_api_proxy *get_vm_api_proxy();
+        virtual snapshot_proxy *new_snapshot_proxy(void *chain);
         virtual database_proxy *new_database_proxy(void *db_ptr);
         virtual block_log_proxy *new_block_log_proxy(string& block_log_dir);
         virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
