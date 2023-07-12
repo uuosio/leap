@@ -3,7 +3,7 @@
 
 using namespace std;
 
-string& get_last_error();
+string get_last_error();
 void set_last_error(string& error);
 
 #define CATCH_AND_LOG_EXCEPTION()\

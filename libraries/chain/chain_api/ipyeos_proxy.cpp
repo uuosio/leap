@@ -17,17 +17,20 @@
 using namespace eosio::chain;
 
 
-static string last_error = "";
+static vector<string> s_errors;
 
-string& get_last_error() {
-    return last_error;
+string get_last_error() {
+    if (s_errors.size() > 0) {
+        return s_errors.back();
+    }
+    return "";
 }
 
 void set_last_error(string& error) {
-    last_error = error;
+    s_errors.push_back(error);
 }
 
-string& ipyeos_proxy::get_last_error() {
+string ipyeos_proxy::get_last_error() {
     return ::get_last_error();
 }
 

@@ -72,7 +72,7 @@ class ipyeos_proxy {
         virtual void pack_native_object(int type, string& msg, vector<char>& packed_message);
         virtual void unpack_native_object(int type, string& packed_message, string& msg);
 
-        virtual string& get_last_error();
+        virtual string get_last_error();
         virtual void set_last_error(string& error);
 
         virtual uint64_t s2n(string& name);
