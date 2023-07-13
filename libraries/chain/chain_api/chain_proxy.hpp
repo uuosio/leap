@@ -132,8 +132,8 @@ class chain_proxy {
 
         virtual void gen_transaction(bool json, string& _actions, int64_t expiration, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result);
         virtual string push_transaction(string& _packed_trx, string& deadline, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us);
-        virtual bool push_block(void *block_log_ptr, uint32_t block_num);
-        virtual bool push_raw_block(const vector<char>& raw_block);
+        virtual bool push_block_from_block_log(void *block_log_ptr, uint32_t block_num);
+        virtual bool push_block(const char *raw_block, size_t raw_block_size, string *block_statistics);
         virtual string get_scheduled_transactions();
         virtual string get_scheduled_transaction(const char *sender_id, size_t sender_id_size, string& sender);
         virtual string push_scheduled_transaction(string& scheduled_tx_id, string& deadline, uint32_t billed_cpu_time_us);

@@ -630,7 +630,7 @@ string chain_proxy::push_scheduled_transaction(string& scheduled_tx_id, string& 
     return fc::json::to_string(ret, fc::time_point::maximum());
 }
 
-bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
+bool chain_proxy::push_block_from_block_log(void *block_log_ptr, uint32_t block_num) {
     try {
         auto block_log = static_cast<eosio::chain::block_log*>(block_log_ptr);
         auto b = block_log->read_block_by_num(block_num);
@@ -650,18 +650,43 @@ bool chain_proxy::push_block(void *block_log_ptr, uint32_t block_num) {
     return false;
 }
 
-bool chain_proxy::push_raw_block(const vector<char>& raw_block) {
+bool chain_proxy::push_block(const char *raw_block, size_t raw_block_size, string *block_statistics) {
     try {
-        auto b = std::make_shared<signed_block>();
-        fc::raw::unpack(raw_block.data(), raw_block.size(), *b);
-        auto bsf = c->create_block_state_future(b->calculate_id(), b);
+        auto block = std::make_shared<signed_block>();
+        fc::raw::unpack(raw_block, raw_block_size, *block);
+
+        const auto& id = block->calculate_id();
+        auto bsf = c->create_block_state_future(id, block);
         controller::block_report br;
+
+        auto now = fc::time_point::now();
+
         c->push_block( br, bsf.get(), []( const branch_type& forked_branch ) {
             elog("forked_branch_callback not implemented");
         }, []( const transaction_id_type& id ) {
             // elog("trx_meta_cache_lookup ${id}", ("id", id));
             return nullptr;
         } );
+
+        if (block_statistics) {
+            auto blk_num = block->block_num();
+            *block_statistics = fc::format_string("Received block ${id}... #${n} signed by ${p} "
+                "[trxs: ${count}, lib: ${lib}, confirmed: ${confs}, net: ${net}, cpu: ${cpu}, elapsed: ${elapsed}, time: ${time}, latency: "
+                "${latency} ms]",
+                fc::mutable_variant_object()
+                ("p", block->producer)
+                ("id", id.str().substr(8, 16))
+                ("n", blk_num)
+                ("count", block->transactions.size())
+                ("lib", c->last_irreversible_block_num())
+                ("confs", block->confirmed)
+                ("net", br.total_net_usage)
+                ("cpu", br.total_cpu_usage_us)
+                ("elapsed", br.total_elapsed_time)
+                ("time", br.total_time)
+                ("latency", (now - block->timestamp).count() / 1000));
+        }
+
         return true;
     } CATCH_AND_LOG_EXCEPTION();
     return false;
