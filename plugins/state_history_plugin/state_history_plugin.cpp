@@ -58,6 +58,7 @@ private:
    chain_plugin*                    chain_plug = nullptr;
    std::optional<state_history_log> trace_log;
    std::optional<state_history_log> chain_state_log;
+   uint32_t                         first_available_block = 0;
    bool                             trace_debug_mode = false;
    std::optional<scoped_connection> applied_transaction_connection;
    std::optional<scoped_connection> block_start_connection;
@@ -117,10 +118,17 @@ public:
 
    // thread-safe
    std::optional<chain::block_id_type> get_block_id(uint32_t block_num) {
-      if (trace_log)
-         return trace_log->get_block_id(block_num);
-      if (chain_state_log)
-         return chain_state_log->get_block_id(block_num);
+      std::optional<chain::block_id_type> id;
+      if( trace_log ) {
+         id = trace_log->get_block_id( block_num );
+         if( id )
+            return id;
+      }
+      if( chain_state_log ) {
+         id = chain_state_log->get_block_id( block_num );
+         if( id )
+            return id;
+      }
       try {
          return chain_plug->chain().get_block_id_for_num(block_num);
       } catch (...) {
@@ -146,7 +154,39 @@ public:
       return head_timestamp;
    }
 
-   void listen();
+   // thread-safe
+   uint32_t get_first_available_block_num() const {
+      return first_available_block;
+   }
+
+   template <typename Protocol>
+   void create_listener(const std::string& address) {
+      const boost::posix_time::milliseconds accept_timeout(200);
+      using socket_type = typename Protocol::socket; 
+      fc::create_listener<Protocol>(
+          thread_pool.get_executor(), _log, accept_timeout, address, "", [this](socket_type&& socket) {
+             // Create a session object and run it
+             catch_and_log([&, this] {
+                auto s = std::make_shared<session<state_history_plugin_impl, socket_type>>(*this, std::move(socket),
+                                                                                           session_mgr);
+                session_mgr.insert(s);
+                s->start();
+             });
+          });
+   }
+
+   void listen(){
+      try {
+         if (!endpoint_address.empty()) {
+            create_listener<boost::asio::ip::tcp>(endpoint_address);
+         }
+         if (!unix_path.empty()) {
+            create_listener<boost::asio::local::stream_protocol>(unix_path);
+         }
+      } catch (std::exception&) {
+         FC_THROW_EXCEPTION(plugin_exception, "unable to open listen socket");
+      }
+   }
 
    // called from main thread
    void on_applied_transaction(const transaction_trace_ptr& p, const packed_transaction_ptr& t) {
@@ -155,14 +195,17 @@ public:
    }
 
    // called from main thread
+   void update_current() {
+      const auto& chain = chain_plug->chain();
+      std::lock_guard g(mtx);
+      head_id = chain.head_block_id();
+      lib_id = chain.last_irreversible_block_id();
+      head_timestamp = chain.head_block_time();
+   }
+
+   // called from main thread
    void on_accepted_block(const block_state_ptr& block_state) {
-      {
-         const auto& chain = chain_plug->chain();
-         std::lock_guard g(mtx);
-         head_id = chain.head_block_id();
-         lib_id = chain.last_irreversible_block_id();
-         head_timestamp = chain.head_block_time();
-      }
+      update_current();
 
       try {
          store_traces(block_state);
@@ -234,44 +277,6 @@ public:
    }
 
 }; // state_history_plugin_impl
-
-template <typename Protocol>
-struct ship_listener : fc::listener<ship_listener<Protocol>, Protocol> {
-   using socket_type = typename Protocol::socket;
-
-   static constexpr uint32_t accept_timeout_ms = 200;
-
-   state_history_plugin_impl& state_;
-
-   ship_listener(boost::asio::io_context& executor, logger& logger, const std::string& local_address,
-                 const typename Protocol::endpoint& endpoint, state_history_plugin_impl& state)
-       : fc::listener<ship_listener<Protocol>, Protocol>(
-             executor, logger, boost::posix_time::milliseconds(accept_timeout_ms), local_address, endpoint)
-       , state_(state) {}
-
-   void create_session(socket_type&& socket) {
-      // Create a session object and run it
-      catch_and_log([&] {
-         auto s = std::make_shared<session<state_history_plugin_impl, socket_type>>(
-            state_, std::move(socket), state_.get_session_manager());
-         state_.get_session_manager().insert(s);
-         s->start();
-      });
-   }
-};
-
-void state_history_plugin_impl::listen() {
-   try {
-      if (!endpoint_address.empty()) {
-         ship_listener<boost::asio::ip::tcp>::create(thread_pool.get_executor(), _log, endpoint_address, *this);
-      }
-      if (!unix_path.empty()) {
-         ship_listener<boost::asio::local::stream_protocol>::create(thread_pool.get_executor(), _log, unix_path, *this);
-      }
-   } catch (std::exception&) {
-      FC_THROW_EXCEPTION(plugin_exception, "unable to open listen socket");
-   }
-}
 
 state_history_plugin::state_history_plugin()
     : my(std::make_shared<state_history_plugin_impl>()) {}
@@ -396,12 +401,26 @@ void state_history_plugin::plugin_initialize(const variables_map& options) {
    
 void state_history_plugin_impl::plugin_startup() {
    try {
-      auto bsp = chain_plug->chain().head_block_state();
+      const auto& chain = chain_plug->chain();
+      update_current();
+      auto bsp = chain.head_block_state();
       if( bsp && chain_state_log && chain_state_log->empty() ) {
          fc_ilog( _log, "Storing initial state on startup, this can take a considerable amount of time" );
          store_chain_state( bsp );
          fc_ilog( _log, "Done storing initial state on startup" );
       }
+      first_available_block = chain.earliest_available_block_num();
+      if (trace_log) {
+         auto first_trace_block = trace_log->block_range().first;
+         if( first_trace_block > 0 )
+            first_available_block = std::min( first_available_block, first_trace_block );
+      }
+      if (chain_state_log) {
+         auto first_state_block = chain_state_log->block_range().first;
+         if( first_state_block > 0 )
+            first_available_block = std::min( first_available_block, first_state_block );
+      }
+      fc_ilog(_log, "First available block for SHiP ${b}", ("b", first_available_block));
       listen();
       // use of executor assumes only one thread
       thread_pool.start( 1, [](const fc::exception& e) {

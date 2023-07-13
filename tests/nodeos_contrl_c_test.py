@@ -59,7 +59,7 @@ try:
     cluster.validateAccounts(None)
 
     prodNode = cluster.getNode(0)
-    nonProdNode = cluster.getNode(1)
+    nonProdNode = cluster.getNode(2)
 
     accounts=createAccountKeys(2)
     if accounts is None:
@@ -94,7 +94,7 @@ try:
     testSuccessful=False
 
     Print("Configure and launch txn generators")
-    targetTpsPerGenerator = 100
+    targetTpsPerGenerator = 10
     testTrxGenDurationSec=60
     trxGeneratorCnt=1
     cluster.launchTrxGenerators(contractOwnerAcctName=cluster.eosioAccount.name, acctNamesList=[accounts[0].name,accounts[1].name],
