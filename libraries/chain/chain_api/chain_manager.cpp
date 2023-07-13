@@ -27,6 +27,8 @@ FC_REFLECT_ENUM(eosio::chain::db_read_mode,
 
 FC_REFLECT_ENUM(eosio::chain::validation_mode, (FULL)(LIGHT))
 
+FC_REFLECT_ENUM(eosio::chain::wasm_interface::vm_oc_enable, (oc_auto)(oc_all)(oc_none))
+
 FC_REFLECT_ENUM(chainbase::pinnable_mapped_file::map_mode, (mapped)(heap)(locked))
 
 // FC_REFLECT(eosio::chain::block_log_prune_config, (prune_blocks)(prune_threshold)(vacuum_on_close))

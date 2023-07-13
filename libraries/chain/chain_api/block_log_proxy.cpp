@@ -85,7 +85,10 @@ uint32_t block_log_proxy::head_block_num() {
 string block_log_proxy::head_id() {
     try {
         auto block_id = _block_log->head_id();
-        return block_id.str();
+        if (!block_id) {
+            return "";
+        }
+        return block_id->str();
     } CATCH_AND_LOG_EXCEPTION();
     return "";
 }
