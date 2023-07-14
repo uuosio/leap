@@ -39,6 +39,11 @@ void transaction_proxy::free(void *transaction) {
     delete static_cast<signed_transaction *>(transaction);
 }
 
+void transaction_proxy::id(void *transaction, vector<char>& result) {
+    signed_transaction *trx = static_cast<signed_transaction *>(transaction);
+    result = fc::raw::pack(trx->id());
+}
+
 void transaction_proxy::add_action(void *transaction, uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths) {
     signed_transaction *trx = static_cast<signed_transaction *>(transaction);
     vector<permission_level> auths_;

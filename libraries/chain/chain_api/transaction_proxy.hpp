@@ -16,6 +16,7 @@ public:
         uint32_t delay_sec            //fc::unsigned_int
     );
     virtual void free(void *transaction);
+    virtual void id(void *transaction, vector<char>& result);
     virtual void add_action(void *transaction, uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths);
     virtual bool sign(void *transaction, const char *private_key, size_t size, const char *chain_id, size_t chain_id_size);
     virtual void pack(void *transaction, bool compress, vector<char>& packed_transaction);

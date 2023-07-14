@@ -588,23 +588,24 @@ void chain_proxy::gen_transaction(bool json, string& _actions, int64_t expiratio
     } CATCH_AND_LOG_EXCEPTION();
 }
 
-string chain_proxy::push_transaction(string& _packed_trx, string& deadline, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us) {
+bool chain_proxy::push_transaction(const char *_packed_tx, size_t _packed_tx_size, int64_t block_deadline_ms, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us, string& result) {
     try {
-        vector<char> packed_trx(_packed_trx.c_str(), _packed_trx.c_str()+_packed_trx.size());
         auto ptrx = std::make_shared<packed_transaction>();
-        fc::datastream<const char*> ds( _packed_trx.c_str(), _packed_trx.size() );
-        fc::raw::unpack(ds, *ptrx);
+        fc::raw::unpack(_packed_tx, _packed_tx_size, *ptrx);
         auto ptrx_meta = transaction_metadata::recover_keys(ptrx, c->get_chain_id());
     //    auto ptrx_meta = transaction_metadata::create_no_recover_keys( trx, transaction_metadata::trx_type::input );
-        auto _deadline = fc::time_point::from_iso_string(deadline);
+        time_point _block_deadline;
+        if (0 == block_deadline_ms) {
+            _block_deadline = fc::time_point::maximum();
+        } else {
+            _block_deadline = fc::time_point(fc::microseconds(block_deadline_ms*1000));
+        }
         auto max_trx_time = fc::microseconds::maximum();
-        auto ret = c->push_transaction(ptrx_meta, _deadline, max_trx_time, billed_cpu_time_us, explicit_cpu_bill, subjective_cpu_bill_us);
-        return fc::json::to_string(ret, fc::time_point::maximum());
-        // if (ret->except) {
-        //     return false;
-        // }
+        auto ret = c->push_transaction(ptrx_meta, _block_deadline, max_trx_time, billed_cpu_time_us, explicit_cpu_bill, subjective_cpu_bill_us);
+        result = fc::json::to_string(ret, fc::time_point::maximum());
+        return true;
     } CATCH_AND_LOG_EXCEPTION();
-    return "";
+    return false;
 }
 
 string chain_proxy::get_scheduled_transactions() {
