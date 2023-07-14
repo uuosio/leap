@@ -76,9 +76,21 @@ bool chain_proxy::startup(bool initdb) {
     return false;
 }
 
-int chain_proxy::start_block(string& _time, uint16_t confirm_block_count, string& _new_features) {
+block_timestamp_type calculate_pending_block_time(const eosio::chain::controller& chain) {
+   const fc::time_point     now   = fc::time_point::now();
+   const fc::time_point     base  = std::max<fc::time_point>(now, chain.head_block_time());
+   return block_timestamp_type(base).next();
+}
+
+int chain_proxy::start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features) {
     try {
-        auto time = fc::time_point::from_iso_string(_time);
+        fc::time_point time;
+        if (0 == block_time_since_epoch_ms) {
+            time = calculate_pending_block_time(*c);
+        } else {
+            time = fc::time_point(fc::microseconds(block_time_since_epoch_ms * 1000));
+        }
+
         if (_new_features.size()) {
             auto new_features = fc::json::from_string(_new_features).as<vector<digest_type>>();
             c->start_block(block_timestamp_type(time), confirm_block_count, new_features, controller::block_status::incomplete);
@@ -543,12 +555,12 @@ string chain_proxy::get_scheduled_producer(string& _block_time) {
     return fc::json::to_string(producer, fc::time_point::maximum());
 }
 
-void chain_proxy::gen_transaction(bool json, string& _actions, int64_t expiration, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result) {
+void chain_proxy::gen_transaction(bool json, string& _actions, int64_t expiration_sec, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result) {
     try {
         signed_transaction trx;
         auto actions = fc::json::from_string(_actions).as<vector<eosio::chain::action>>();
         trx.actions = std::move(actions);
-        trx.expiration = time_point_sec(expiration/1000000);
+        trx.expiration = time_point_sec(expiration_sec);
         eosio::chain::block_id_type id(reference_block_id);
         trx.set_reference_block(id);
         trx.max_net_usage_words = 0;
@@ -671,7 +683,7 @@ bool chain_proxy::push_block(const char *raw_block, size_t raw_block_size, strin
         if (block_statistics) {
             auto blk_num = block->block_num();
             *block_statistics = fc::format_string("Received block ${id}... #${n} signed by ${p} "
-                "[trxs: ${count}, lib: ${lib}, confirmed: ${confs}, net: ${net}, cpu: ${cpu}, elapsed: ${elapsed}, time: ${time}, latency: "
+                "[trxs: ${count}, lib: ${lib}, confirmed: ${confs}, net: ${net}, cpu: ${cpu} us, elapsed: ${elapsed} us, time: ${time} us, latency: "
                 "${latency} ms]",
                 fc::mutable_variant_object()
                 ("p", block->producer)

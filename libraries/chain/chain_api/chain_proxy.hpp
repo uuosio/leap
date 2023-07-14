@@ -46,7 +46,7 @@ class chain_proxy {
         virtual void say_hello();
 
         virtual void chain_id(string& result);
-        virtual int start_block(string& _time, uint16_t confirm_block_count, string& _new_features);
+        virtual int start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features);
         virtual int abort_block();
         virtual bool startup(bool initdb);
         virtual void finalize_block(string& _priv_keys);
@@ -130,7 +130,7 @@ class chain_proxy {
         virtual bool all_subjective_mitigations_disabled();
         virtual string get_scheduled_producer(string& _block_time);
 
-        virtual void gen_transaction(bool json, string& _actions, int64_t expiration, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result);
+        virtual void gen_transaction(bool json, string& _actions, int64_t expiration_sec, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result);
         virtual string push_transaction(string& _packed_trx, string& deadline, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us);
         virtual bool push_block_from_block_log(void *block_log_ptr, uint32_t block_num);
         virtual bool push_block(const char *raw_block, size_t raw_block_size, string *block_statistics);
