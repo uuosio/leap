@@ -1,4 +1,8 @@
-v2.0.5 release
+v2.0.6 release
 
-1. Export logging interfaces to python
-2. Fix replay
+1. bump leap to v4.0.4
+2. export snapshot_scheduler class 80567af75a153f36396a3157606b5e5e88d19adf
+3. Update get_last_error 752135b971e5ae956713803fc43ddfeb669f965c
+4. Improve database_proxy 3a29dafc4cc01dabfe5557311104a975d54668f7
+5. Update push_transaction aaf2c036041d30e451a64f802d5bf3f057abe48f
+6. Update start_block & gen_transaction ca155379ced937c5e5242fe746a36bf8d73ddf09
