@@ -6,6 +6,25 @@
 #include <eosio/chain/controller.hpp>
 #include <eosio/chain/apply_context.hpp>
 
+#include <eosio/chain/account_object.hpp>
+#include <eosio/chain/code_object.hpp>
+#include <eosio/chain/block_summary_object.hpp>
+#include <eosio/chain/eosio_contract.hpp>
+#include <eosio/chain/global_property_object.hpp>
+#include <eosio/chain/protocol_state_object.hpp>
+#include <eosio/chain/contract_table_objects.hpp>
+#include <eosio/chain/generated_transaction_object.hpp>
+#include <eosio/chain/transaction_object.hpp>
+#include <eosio/chain/database_header_object.hpp>
+
+#include <eosio/chain/permission_object.hpp>
+#include <eosio/chain/permission_link_object.hpp>
+#include <eosio/chain/global_property_object.hpp>
+#include <eosio/chain/generated_transaction_object.hpp>
+#include <eosio/chain/protocol_state_object.hpp>
+#include <eosio/chain/resource_limits.hpp>
+#include <eosio/chain/resource_limits_private.hpp>
+
 #include <fc/io/json.hpp>
 #include <dlfcn.h>
 
@@ -14,9 +33,48 @@
 #include "native_object.hpp"
 #include "apply_context_proxy.hpp"
 
+using namespace eosio::chain::resource_limits;
+
+using resource_index_set = index_set<
+   resource_limits_index,
+   resource_usage_index,
+   resource_limits_state_index,
+   resource_limits_config_index
+>;
+
+using authorization_index_set = index_set<
+    permission_index,
+    permission_usage_index,
+    permission_link_index
+>;
+
+using controller_index_set = index_set<
+   account_index,
+   account_metadata_index,
+   account_ram_correction_index,
+   global_property_multi_index,
+   protocol_state_multi_index,
+   dynamic_global_property_multi_index,
+   block_summary_multi_index,
+   transaction_multi_index,
+   generated_transaction_multi_index,
+   table_id_multi_index,
+   code_index,
+   database_header_multi_index
+>;
+
+using contract_database_index_set = index_set<
+   key_value_index,
+   index64_index,
+   index128_index,
+   index256_index,
+   index_double_index,
+   index_long_double_index
+>;
+
 using namespace eosio::chain;
 
-
+static bool s_worker_process = false;
 static vector<string> s_errors;
 
 string get_last_error() {
@@ -69,8 +127,23 @@ snapshot_proxy *ipyeos_proxy::new_snapshot_proxy(void *chain) {
     return nullptr;
 }
 
-database_proxy *ipyeos_proxy::new_database_proxy(void *db_ptr) {
-    return new database_proxy(db_ptr);
+database_proxy *ipyeos_proxy::new_database_proxy(void *db_ptr, bool attach) {
+    return new database_proxy(static_cast<chainbase::database *>(db_ptr), attach);
+}
+
+chainbase::database *ipyeos_proxy::new_database(const string& dir, bool read_only, uint64_t shared_file_size, bool allow_dirty) {
+    try {
+        auto _read_only = read_only ? chainbase::database::read_only : chainbase::database::read_write;
+        auto *db = new chainbase::database(dir, _read_only, shared_file_size, allow_dirty);
+
+        controller_index_set::add_indices(*db);
+        contract_database_index_set::add_indices(*db);
+
+        authorization_index_set::add_indices(*db);
+        resource_index_set::add_indices(*db);
+        return db;
+    } CATCH_AND_LOG_EXCEPTION();
+    return nullptr;
 }
 
 block_log_proxy *ipyeos_proxy::new_block_log_proxy(string& block_log_dir) {
@@ -155,6 +228,14 @@ void ipyeos_proxy::enable_debug(bool debug) {
 
 bool ipyeos_proxy::is_debug_enabled() {
     return this->debug_enabled;
+}
+
+void ipyeos_proxy::set_worker_process(bool worker_process) {
+    s_worker_process = worker_process;
+}
+
+bool ipyeos_proxy::is_worker_process() {
+    return s_worker_process;
 }
 
 string ipyeos_proxy::create_key(string &key_type) {

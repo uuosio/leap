@@ -31,7 +31,7 @@ int chain_proxy::init(string& config, string& _genesis, string& chain_id, string
     this->set_debug_producer_key(debug_producer_key);
     cm = std::make_unique<chain_manager>(config, _genesis, chain_id, protocol_features_dir, snapshot_file);
     this->cm->init();
-    this->c = this->cm->c;
+    this->c = this->cm->get_controller();
 
     chain_rpc_api_proxy *api = get_ipyeos_proxy()->cb->new_chain_api(this->c.get());
     this->_api_proxy = std::shared_ptr<chain_rpc_api_proxy>(api);
@@ -110,7 +110,7 @@ int chain_proxy::abort_block() {
    return 0;
 }
 
-void chain_proxy::finalize_block(string& _priv_keys) {
+bool chain_proxy::finalize_block(string& _priv_keys) {
     try {
         auto priv_keys = fc::json::from_string(_priv_keys).as<vector<string>>();
         controller::block_report br;
@@ -122,14 +122,17 @@ void chain_proxy::finalize_block(string& _priv_keys) {
             }
             return sigs;
         } );
+        return true;
     } CATCH_AND_LOG_EXCEPTION();
-
+    return false;
 }
 
-void chain_proxy::commit_block() {
+bool chain_proxy::commit_block() {
     try {
         c->commit_block();
+        return true;
     } CATCH_AND_LOG_EXCEPTION();
+    return false;
 }
 
 string chain_proxy::get_block_id_for_num(uint32_t block_num ) {
@@ -588,11 +591,16 @@ void chain_proxy::gen_transaction(bool json, string& _actions, int64_t expiratio
     } CATCH_AND_LOG_EXCEPTION();
 }
 
-bool chain_proxy::push_transaction(const char *_packed_tx, size_t _packed_tx_size, int64_t block_deadline_ms, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us, string& result) {
+bool chain_proxy::push_transaction(const char *_packed_tx, size_t _packed_tx_size, int64_t block_deadline_ms, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us, bool read_only, string& result) {
     try {
         auto ptrx = std::make_shared<packed_transaction>();
+        transaction_metadata_ptr ptrx_meta;
         fc::raw::unpack(_packed_tx, _packed_tx_size, *ptrx);
-        auto ptrx_meta = transaction_metadata::recover_keys(ptrx, c->get_chain_id());
+        if (read_only) {
+            ptrx_meta = transaction_metadata::create_no_recover_keys(ptrx, transaction_metadata::trx_type::read_only);
+        } else {
+            ptrx_meta = transaction_metadata::recover_keys(ptrx, c->get_chain_id());
+        }
     //    auto ptrx_meta = transaction_metadata::create_no_recover_keys( trx, transaction_metadata::trx_type::input );
         time_point _block_deadline;
         if (0 == block_deadline_ms) {

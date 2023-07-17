@@ -39,6 +39,14 @@
 
 #include <ipyeos.hpp>
 
+bool is_worker_process() {
+    auto *proxy = get_ipyeos_proxy_ex();
+    if (!proxy) {
+        return false;
+    }
+    return proxy->is_worker_process();
+}
+
 namespace eosio { namespace chain {
 
 using resource_limits::resource_limits_manager;
@@ -77,7 +85,9 @@ class maybe_session {
       }
 
       explicit maybe_session(database& db) {
-         _session.emplace(db.start_undo_session(true));
+         if (!is_worker_process()) {
+            _session.emplace(db.start_undo_session(true));
+         }
       }
 
       maybe_session(const maybe_session&) = delete;
@@ -321,7 +331,7 @@ struct controller_impl {
     self(s),
     db( cfg.state_dir,
         cfg.read_only ? database::read_only : database::read_write,
-        cfg.state_size, false, cfg.db_map_mode ),
+        cfg.state_size, is_worker_process(), cfg.db_map_mode ),
     blog( cfg.blocks_dir, cfg.blog ),
     fork_db( cfg.blocks_dir / config::reversible_blocks_dir_name ),
     resource_limits( db, [&s](bool is_trx_transient) { return s.get_deep_mind_logger(is_trx_transient); }),
@@ -660,6 +670,7 @@ struct controller_impl {
          blog.reset( genesis, head->block );
       }
       init(check_shutdown);
+      fork_db.save();
    }
 
    void startup(std::function<void()> shutdown, std::function<bool()> check_shutdown) {
@@ -1850,10 +1861,12 @@ struct controller_impl {
                   in_trx_requiring_checks = old_value;
                });
             in_trx_requiring_checks = true;
-            auto trace = push_transaction( onbtrx, fc::time_point::maximum(), fc::microseconds::maximum(),
-                                           gpo.configuration.min_transaction_cpu_usage, true, 0 );
-            if( trace->except ) {
-               wlog("onblock ${block_num} is REJECTING: ${entire_trace}",("block_num", head->block_num + 1)("entire_trace", trace));
+            if (!is_worker_process()) {
+               auto trace = push_transaction( onbtrx, fc::time_point::maximum(), fc::microseconds::maximum(),
+                                             gpo.configuration.min_transaction_cpu_usage, true, 0 );
+               if( trace->except ) {
+                  wlog("onblock ${block_num} is REJECTING: ${entire_trace}",("block_num", head->block_num + 1)("entire_trace", trace));
+               }
             }
          } catch( const std::bad_alloc& e ) {
             elog( "on block transaction failed due to a std::bad_alloc" );
@@ -2500,6 +2513,9 @@ struct controller_impl {
 
 
    void clear_expired_input_transactions(const fc::time_point& deadline) {
+      if (is_worker_process()) {
+         return;
+      }
       //Look for expired transactions in the deduplication list, and remove them.
       auto& transaction_idx = db.get_mutable_index<transaction_multi_index>();
       const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();

@@ -36,7 +36,7 @@ public:
     // add pending snapshot info to inflight snapshot request
     virtual void add_pending_snapshot_info(const string& head_block_id, uint32_t head_block_num, int64_t head_block_time, uint32_t version, const string& snapshot_name);
 private:
-    eosio::chain::snapshot_scheduler *_snapshot_scheduler;
-    boost::signals2::scoped_connection *_block_start_connection;
-    boost::signals2::scoped_connection *_irreversible_block_connection;
+    std::unique_ptr<eosio::chain::snapshot_scheduler> _snapshot_scheduler;
+    std::unique_ptr<boost::signals2::scoped_connection> _block_start_connection;
+    std::unique_ptr<boost::signals2::scoped_connection> _irreversible_block_connection;
 };

@@ -49,8 +49,8 @@ class chain_proxy {
         virtual int start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features);
         virtual int abort_block();
         virtual bool startup(bool initdb);
-        virtual void finalize_block(string& _priv_keys);
-        virtual void commit_block();
+        virtual bool finalize_block(string& _priv_keys);
+        virtual bool commit_block();
         virtual string get_block_id_for_num(uint32_t block_num);
         virtual string get_global_properties();
         virtual string get_dynamic_global_properties();
@@ -131,7 +131,7 @@ class chain_proxy {
         virtual string get_scheduled_producer(string& _block_time);
 
         virtual void gen_transaction(bool json, string& _actions, int64_t expiration_sec, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result);
-        virtual bool push_transaction(const char *_packed_tx, size_t _packed_tx_size, int64_t block_deadline_ms, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us, string& result);
+        virtual bool push_transaction(const char *_packed_tx, size_t _packed_tx_size, int64_t block_deadline_ms, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us, bool read_only, string& result);
         virtual bool push_block_from_block_log(void *block_log_ptr, uint32_t block_num);
         virtual bool push_block(const char *raw_block, size_t raw_block_size, string *block_statistics);
         virtual string get_scheduled_transactions();

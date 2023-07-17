@@ -29,7 +29,7 @@ namespace eosio { namespace chain {
                                               const flat_set<digest_type>&,
                                               const vector<digest_type>& )>& validator );
          void close();
-
+         void save(const string& path="");
          block_header_state_ptr  get_block_header( const block_id_type& id )const;
          block_state_ptr         get_block( const block_id_type& id )const;
 

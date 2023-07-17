@@ -60,7 +60,8 @@ class ipyeos_proxy {
         virtual transaction_proxy *get_transaction_proxy();
         virtual vm_api_proxy *get_vm_api_proxy();
         virtual snapshot_proxy *new_snapshot_proxy(void *chain);
-        virtual database_proxy *new_database_proxy(void *db_ptr);
+        virtual database_proxy *new_database_proxy(void *db_ptr, bool attached);
+        virtual chainbase::database *new_database(const string& dir, bool read_only, uint64_t shared_file_size, bool allow_dirty);
         virtual block_log_proxy *new_block_log_proxy(string& block_log_dir);
         virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
         virtual void chain_free(chain_proxy* api);
@@ -82,6 +83,9 @@ class ipyeos_proxy {
 
         virtual void enable_debug(bool debug);
         virtual bool is_debug_enabled();
+
+        virtual void set_worker_process(bool worker_process);
+        virtual bool is_worker_process();
 
         virtual string create_key(string &key_type);
         virtual string get_public_key(string &priv_key);

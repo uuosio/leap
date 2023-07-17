@@ -305,6 +305,10 @@ void chain_manager::init() {
    this->c->add_indices();
 }
 
+std::shared_ptr<eosio::chain::controller> chain_manager::get_controller() {
+   return c;
+}
+
 chain_manager::~chain_manager() {
 }
 

@@ -15,16 +15,16 @@ snapshot_proxy::snapshot_proxy(void *_chain) {
     FC_ASSERT(_chain != nullptr, "chain is null");
 
     eosio::chain::controller& chain = *(eosio::chain::controller *)_chain;
-    _snapshot_scheduler = new eosio::chain::snapshot_scheduler();
+    _snapshot_scheduler = std::make_unique<eosio::chain::snapshot_scheduler>();
 
-    _irreversible_block_connection = new scoped_connection(chain.irreversible_block.connect([&](const auto& bsp) {
+    _irreversible_block_connection = std::make_unique<scoped_connection>(chain.irreversible_block.connect([&](const auto& bsp) {
         EOS_ASSERT(chain.is_write_window(), producer_exception, "write window is expected for on_irreversible_block signal");
         _snapshot_scheduler->on_irreversible_block(bsp->block, chain);
     }));
 
     // _snapshot_scheduler.on_irreversible_block(lib, chain);
 
-    _block_start_connection = new scoped_connection(chain.block_start.connect([this, &chain](uint32_t bs) {
+    _block_start_connection = std::make_unique<scoped_connection>(chain.block_start.connect([this, &chain](uint32_t bs) {
         try {
             _snapshot_scheduler->on_start_block(bs, chain);
         } catch (const snapshot_execution_exception& e) {
@@ -36,9 +36,6 @@ snapshot_proxy::snapshot_proxy(void *_chain) {
 }
 
 snapshot_proxy::~snapshot_proxy() {
-    delete _block_start_connection;
-    delete _irreversible_block_connection;
-    delete _snapshot_scheduler;
 }
 
 // snapshot scheduler handlers

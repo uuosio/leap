@@ -27,12 +27,17 @@ using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::chain::resource_limits;
 
-database_proxy::database_proxy(void *db_ptr): db(*static_cast<chainbase::database *>(db_ptr)) {
-
+database_proxy::database_proxy(chainbase::database *db_ptr, bool attach):
+attach(attach),
+db_ptr(db_ptr),
+db(*db_ptr)
+{
 }
 
 database_proxy::~database_proxy() {
-
+    if (!attach) {
+        delete db_ptr;
+    }
 }
 
 uint64_t database_proxy::get_free_memory() {

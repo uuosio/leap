@@ -2,6 +2,9 @@
 
 #include <stdint.h>
 #include <vector>
+#include <string>
+
+using namespace std;
 
 namespace chainbase {
     class database;
@@ -11,7 +14,7 @@ typedef int32_t (*fn_data_handler)(int32_t tp, char *data, size_t size, void* cu
 
 class database_proxy {
 public:
-    database_proxy(void *db_ptr);
+    database_proxy(chainbase::database *db_ptr, bool attach = true);
     virtual ~database_proxy();
 
     virtual uint64_t get_free_memory();
@@ -36,5 +39,7 @@ public:
 private:
     fn_data_handler handler = nullptr;
     void *custom_data = nullptr;
+    bool attach = false;
+    chainbase::database *db_ptr = nullptr;
     chainbase::database& db;
 };

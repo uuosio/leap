@@ -15,7 +15,8 @@ class chain_manager {
         void init();
         bool startup(bool init_db);
         void shutdown();
-    public:
+        std::shared_ptr<eosio::chain::controller> get_controller();
+    private:
         std::shared_ptr<controller> c;
         controller::config cfg;
         genesis_state genesis;

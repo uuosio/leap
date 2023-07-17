@@ -11,6 +11,8 @@
 #include <fstream>
 #include <shared_mutex>
 
+bool is_worker_process();
+
 namespace eosio { namespace chain {
    using boost::multi_index_container;
    using namespace boost::multi_index;
@@ -74,6 +76,7 @@ namespace eosio { namespace chain {
       void open_impl( const std::function<void( block_timestamp_type,
                                                 const flat_set<digest_type>&,
                                                 const vector<digest_type>& )>& validator );
+      void save_fork_database_impl(const string& fork_db_dat);
       void close_impl();
 
 
@@ -117,7 +120,12 @@ namespace eosio { namespace chain {
       if (!std::filesystem::is_directory(datadir))
          std::filesystem::create_directories(datadir);
 
-      auto fork_db_dat = datadir / config::forkdb_filename;
+      std::filesystem::path fork_db_dat;
+      if (!is_worker_process()) {
+         fork_db_dat = datadir / config::forkdb_filename;
+      } else {
+         fork_db_dat = datadir / (string(config::forkdb_filename) + ".worker");
+      }
       if( std::filesystem::exists( fork_db_dat ) ) {
          try {
             string content;
@@ -183,8 +191,9 @@ namespace eosio { namespace chain {
                            ("filename", fork_db_dat) );
             }
          } FC_CAPTURE_AND_RETHROW( (fork_db_dat) )
-
-         std::filesystem::remove( fork_db_dat );
+         if (!is_worker_process()) {
+            std::filesystem::rename(fork_db_dat, fork_db_dat.generic_string() + ".worker");
+         }
       }
    }
 
@@ -193,9 +202,18 @@ namespace eosio { namespace chain {
       my->close_impl();
    }
 
-   void fork_database_impl::close_impl() {
-      auto fork_db_dat = datadir / config::forkdb_filename;
+   void fork_database::save(const string& path) {
+      my->save_fork_database_impl(path);
+   }
 
+   void fork_database_impl::save_fork_database_impl(const string& _fork_db_dat) {
+      string fork_db_dat;
+      if (_fork_db_dat.empty()) {
+         fork_db_dat = (datadir / (string(config::forkdb_filename) + ".worker")).generic_string();
+      } else {
+         fork_db_dat = _fork_db_dat;
+      }
+      
       if( !root ) {
          if( index.size() > 0 ) {
             elog( "fork_database is in a bad state when closing; not writing out '${filename}'",
@@ -204,7 +222,7 @@ namespace eosio { namespace chain {
          return;
       }
 
-      std::ofstream out( fork_db_dat.generic_string().c_str(), std::ios::out | std::ios::binary | std::ofstream::trunc );
+      std::ofstream out( fork_db_dat.c_str(), std::ios::out | std::ios::binary | std::ofstream::trunc );
       fc::raw::pack( out, fork_database::magic_number );
       fc::raw::pack( out, fork_database::max_supported_version ); // write out current version which is always max_supported_version
       fc::raw::pack( out, *static_cast<block_header_state*>(&*root) );
@@ -252,7 +270,14 @@ namespace eosio { namespace chain {
          elog( "head not set in fork database; '${filename}' will be corrupted",
                ("filename", fork_db_dat) );
       }
+   }
 
+   void fork_database_impl::close_impl() {
+      if (is_worker_process()) {
+         return;
+      }
+      auto fork_db_dat = datadir / config::forkdb_filename;
+      save_fork_database_impl(fork_db_dat.generic_string());
       index.clear();
    }
 
