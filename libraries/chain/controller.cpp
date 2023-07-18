@@ -216,12 +216,7 @@ struct pending_state {
 };
 
 void init_debug(void *id, block_state_ptr head) {
-   auto *proxy = get_ipyeos_proxy_ex();
-   if (proxy == nullptr) {
-      return;
-   }
-
-   string pub_key = proxy->get_debug_producer_key(id);
+   string pub_key = get_debug_producer_key(id);
    if (pub_key.empty()) {
       return;
    }
@@ -336,9 +331,6 @@ struct controller_impl {
     thread_pool(),
     wasm_if_collect( conf.wasm_runtime, conf.eosvmoc_tierup, db, conf.state_dir, conf.eosvmoc_config, !conf.profile_accounts.empty() )
    {
-      string _cfg = fc::json::to_string(cfg, fc::time_point::maximum());
-      set_chain_config(_cfg);
-
       fork_db.open( [this]( block_timestamp_type timestamp,
                             const flat_set<digest_type>& cur_features,
                             const vector<digest_type>& new_features )
@@ -2790,11 +2782,19 @@ uint32_t controller::get_max_nonprivileged_inline_action_size()const
 controller::controller( const controller::config& cfg, const chain_id_type& chain_id )
 :my( new controller_impl( cfg, *this, protocol_feature_set{}, chain_id ) )
 {
+   if (!is_worker_process()) {
+      string _cfg = fc::json::to_string(cfg, fc::time_point::maximum());
+      set_chain_config(this, _cfg);
+   }
 }
 
 controller::controller( const config& cfg, protocol_feature_set&& pfs, const chain_id_type& chain_id )
 :my( new controller_impl( cfg, *this, std::move(pfs), chain_id ) )
 {
+   if (!is_worker_process()) {
+      string _cfg = fc::json::to_string(cfg, fc::time_point::maximum());
+      set_chain_config(this, _cfg);
+   }
 }
 
 controller::~controller() {

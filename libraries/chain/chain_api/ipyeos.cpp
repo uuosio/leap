@@ -84,6 +84,8 @@ vm_api_proxy *get_vm_api_proxy() {
     return get_apply_context_proxy()->get_vm_api_proxy();
 }
 
+}
+
 bool is_worker_process() {
     auto *proxy = get_ipyeos_proxy_ex();
     if (!proxy) {
@@ -92,12 +94,18 @@ bool is_worker_process() {
     return proxy->is_worker_process();
 }
 
-bool set_chain_config(const string& config) {
+bool set_chain_config(void *id, const string& config) {
     auto *proxy = get_ipyeos_proxy_ex();
     if (!proxy) {
         return false;
     }
-    return proxy->cb->set_chain_config(config);
+    return proxy->set_chain_config(id, config);
 }
 
+string get_debug_producer_key(void *id) {
+    auto *proxy = get_ipyeos_proxy_ex();
+    if (!proxy) {
+        return "";
+    }
+    return proxy->get_debug_producer_key(id);
 }

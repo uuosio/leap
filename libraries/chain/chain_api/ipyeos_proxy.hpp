@@ -41,12 +41,10 @@ public:
     virtual void quit();
     virtual void *post(void *(*fn)(void *), void *args);
     virtual void *get_database();
+    virtual void *get_controller();
 
     virtual string data_dir();
     virtual string config_dir();
-
-    virtual string get_chain_config();
-    virtual bool set_chain_config(const string& config);
 
     virtual chain_rpc_api_proxy *new_chain_api(eosio::chain::controller *c);
     virtual trace_api_proxy *new_trace_api_proxy(void *chain, string& trace_dir, uint32_t slice_stride, int32_t minimum_irreversible_history_blocks, int32_t minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride);
@@ -84,6 +82,9 @@ class ipyeos_proxy {
         virtual string get_last_error();
         virtual void set_last_error(string& error);
 
+        virtual string get_chain_config(void *controller);
+        virtual bool set_chain_config(void *controller, const string& config);
+
         virtual uint64_t s2n(string& name);
         virtual string n2s(uint64_t n);
 
@@ -108,6 +109,7 @@ class ipyeos_proxy {
         eos_cb *cb;
     private:
         map<eosio::chain::controller*, chain_proxy*> chain_proxy_map;
+        map<void *, string> chain_config_map;
         string last_error;
         std::shared_ptr<apply_context_proxy> _apply_context_proxy;
         bool debug_enabled = false;

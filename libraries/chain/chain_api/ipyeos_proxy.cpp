@@ -92,8 +92,19 @@ string ipyeos_proxy::get_last_error() {
     return ::get_last_error();
 }
 
-void ipyeos_proxy::set_last_error(string& error) {    
+void ipyeos_proxy::set_last_error(string& error) {
     ::set_last_error(error);
+}
+
+string ipyeos_proxy::get_chain_config(void *controller) {
+    FC_ASSERT(controller != nullptr, "chain is null");
+    return chain_config_map[controller];
+}
+
+bool ipyeos_proxy::set_chain_config(void *controller, const string& config) {
+    FC_ASSERT(controller != nullptr, "chain is null");
+    chain_config_map[controller] = config;
+    return true;
 }
 
 ipyeos_proxy::ipyeos_proxy(eos_cb *cb) {

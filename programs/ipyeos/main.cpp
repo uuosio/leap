@@ -246,6 +246,10 @@ void* eos_cb::post(void* (*fn)(void *), void *args) {
    return eos_post(fn, args);
 }
 
+void *eos_cb::get_controller() {
+   return (void *)&app().get_plugin<eosio::chain_plugin>().chain();
+}
+
 void *eos_cb::get_database() {
    return (void *)&app().get_plugin<eosio::chain_plugin>().chain().db();
 }
@@ -264,15 +268,6 @@ string eos_cb::data_dir() {
 
 string eos_cb::config_dir() {
    return appbase::app().config_dir().string();
-}
-
-string eos_cb::get_chain_config() {
-   return _chain_config;
-}
-
-bool eos_cb::set_chain_config(const string& config) {
-   _chain_config = config;
-   return true;
 }
 
 extern int main_cleos( int argc, char** argv );
