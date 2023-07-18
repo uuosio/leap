@@ -38,14 +38,7 @@
 #include <shared_mutex>
 
 #include <ipyeos.hpp>
-
-bool is_worker_process() {
-    auto *proxy = get_ipyeos_proxy_ex();
-    if (!proxy) {
-        return false;
-    }
-    return proxy->is_worker_process();
-}
+#include <chain_config_reflect.hpp>
 
 namespace eosio { namespace chain {
 
@@ -343,6 +336,9 @@ struct controller_impl {
     thread_pool(),
     wasm_if_collect( conf.wasm_runtime, conf.eosvmoc_tierup, db, conf.state_dir, conf.eosvmoc_config, !conf.profile_accounts.empty() )
    {
+      string _cfg = fc::json::to_string(cfg, fc::time_point::maximum());
+      set_chain_config(_cfg);
+
       fork_db.open( [this]( block_timestamp_type timestamp,
                             const flat_set<digest_type>& cur_features,
                             const vector<digest_type>& new_features )
@@ -737,18 +733,20 @@ struct controller_impl {
          });
       }
 
-      // At this point head != nullptr
-      EOS_ASSERT( db.revision() >= head->block_num, fork_database_exception,
-                  "fork database head (${head}) is inconsistent with state (${db})",
-                  ("db",db.revision())("head",head->block_num) );
+      if (!is_worker_process()) {
+         // At this point head != nullptr
+         EOS_ASSERT( db.revision() >= head->block_num, fork_database_exception,
+                     "fork database head (${head}) is inconsistent with state (${db})",
+                     ("db",db.revision())("head",head->block_num) );
 
-      if( db.revision() > head->block_num ) {
-         wlog( "database revision (${db}) is greater than head block number (${head}), "
-               "attempting to undo pending changes",
-               ("db",db.revision())("head",head->block_num) );
-      }
-      while( db.revision() > head->block_num ) {
-         db.undo();
+         if( db.revision() > head->block_num ) {
+            wlog( "database revision (${db}) is greater than head block number (${head}), "
+                  "attempting to undo pending changes",
+                  ("db",db.revision())("head",head->block_num) );
+         }
+         while( db.revision() > head->block_num ) {
+            db.undo();
+         }
       }
 
       protocol_features.init( db );

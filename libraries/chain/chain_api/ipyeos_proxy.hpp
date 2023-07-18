@@ -42,6 +42,12 @@ public:
     virtual void *post(void *(*fn)(void *), void *args);
     virtual void *get_database();
 
+    virtual string data_dir();
+    virtual string config_dir();
+
+    virtual string get_chain_config();
+    virtual bool set_chain_config(const string& config);
+
     virtual chain_rpc_api_proxy *new_chain_api(eosio::chain::controller *c);
     virtual trace_api_proxy *new_trace_api_proxy(void *chain, string& trace_dir, uint32_t slice_stride, int32_t minimum_irreversible_history_blocks, int32_t minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride);
 
@@ -49,6 +55,8 @@ public:
     virtual int get_log_level(string& logger_name);
 
     virtual void enable_deep_mind(void *controller);
+private:
+    string _chain_config;
 };
 
 class ipyeos_proxy {

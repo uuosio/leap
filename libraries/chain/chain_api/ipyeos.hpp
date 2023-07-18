@@ -11,4 +11,7 @@ extern "C" {
 
     apply_context_proxy *get_apply_context_proxy();
     vm_api_proxy *get_vm_api_proxy();
+
+    bool is_worker_process();
+    bool set_chain_config(const string& config);
 }

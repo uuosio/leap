@@ -11,7 +11,7 @@
 #include <fstream>
 #include <shared_mutex>
 
-bool is_worker_process();
+#include <ipyeos.hpp>
 
 namespace eosio { namespace chain {
    using boost::multi_index_container;

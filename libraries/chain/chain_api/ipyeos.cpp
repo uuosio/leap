@@ -1,20 +1,22 @@
 #include <dlfcn.h>
 
-#include "ipyeos_proxy.hpp"
+#include "ipyeos.hpp"
 #include "apply_context_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
 #include <stacktrace.h>
 
 static ipyeos_proxy *s_proxy = nullptr;
 
-extern "C" void ipyeos_init_proxy(eos_cb* cb) {
+extern "C" {
+
+void ipyeos_init_proxy(eos_cb* cb) {
     if (s_proxy) {
         return;
     }
     s_proxy = new ipyeos_proxy(cb);
 }
 
-extern "C" void ipyeos_init_chain(eos_cb* cb) {
+void ipyeos_init_chain(eos_cb* cb) {
     ipyeos_init_proxy(cb);
 
     const char *chain_api_lib = getenv("CHAIN_API_LIB");
@@ -61,7 +63,7 @@ extern "C" void ipyeos_init_chain(eos_cb* cb) {
     init_vm_api(s_proxy->get_apply_context_proxy()->get_vm_api_proxy());
 }
 
-extern "C" ipyeos_proxy *get_ipyeos_proxy() {
+ipyeos_proxy *get_ipyeos_proxy() {
     if (s_proxy == nullptr) {
         print_stacktrace();
         printf("ipyeos_proxy ptr is null\n");
@@ -70,14 +72,32 @@ extern "C" ipyeos_proxy *get_ipyeos_proxy() {
     return s_proxy;
 }
 
-extern "C" ipyeos_proxy *get_ipyeos_proxy_ex() {
+ipyeos_proxy *get_ipyeos_proxy_ex() {
     return s_proxy;
 }
 
-extern "C" apply_context_proxy *get_apply_context_proxy() {
+apply_context_proxy *get_apply_context_proxy() {
     return get_ipyeos_proxy()->get_apply_context_proxy();
 }
 
-extern "C" vm_api_proxy *get_vm_api_proxy() {
+vm_api_proxy *get_vm_api_proxy() {
     return get_apply_context_proxy()->get_vm_api_proxy();
+}
+
+bool is_worker_process() {
+    auto *proxy = get_ipyeos_proxy_ex();
+    if (!proxy) {
+        return false;
+    }
+    return proxy->is_worker_process();
+}
+
+bool set_chain_config(const string& config) {
+    auto *proxy = get_ipyeos_proxy_ex();
+    if (!proxy) {
+        return false;
+    }
+    return proxy->cb->set_chain_config(config);
+}
+
 }

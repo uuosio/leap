@@ -258,6 +258,23 @@ int eos_cb::get_log_level(string& logger_name) {
    return fc::logger::get(logger_name).get_log_level();
 }
 
+string eos_cb::data_dir() {
+   return appbase::app().data_dir().string();
+}
+
+string eos_cb::config_dir() {
+   return appbase::app().config_dir().string();
+}
+
+string eos_cb::get_chain_config() {
+   return _chain_config;
+}
+
+bool eos_cb::set_chain_config(const string& config) {
+   _chain_config = config;
+   return true;
+}
+
 extern int main_cleos( int argc, char** argv );
 extern int main_keosd( int argc, char** argv );
 
