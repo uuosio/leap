@@ -515,6 +515,11 @@ struct controller_impl {
    }
 
    void replay(std::function<bool()> check_shutdown) {
+      if (is_worker_process()) {
+         ilog("Skipping replay in worker process");
+         return;
+      }
+
       auto blog_head = blog.head();
       if( !fork_db.root() ) {
          fork_db.reset( *head );
@@ -1733,8 +1738,10 @@ struct controller_impl {
       });
 
       if (!self.skip_db_sessions(s)) {
-         EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
-                     ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
+         if (!is_worker_process()) {
+            EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
+                        ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
+         }
 
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
       } else {
