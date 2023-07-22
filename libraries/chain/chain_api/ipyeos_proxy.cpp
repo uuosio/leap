@@ -311,3 +311,8 @@ bool ipyeos_proxy::bytes_to_base58( const char* data, size_t data_size, string& 
     } CATCH_AND_LOG_EXCEPTION();
     return false;
 }
+
+void ipyeos_proxy::ripemd160(const char *data, size_t data_size, vector<char>& hash) {
+    auto h = fc::ripemd160::hash(data, data_size);
+    hash = vector<char>(h.data(), h.data() + h.data_size());
+}

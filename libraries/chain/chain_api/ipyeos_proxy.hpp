@@ -105,6 +105,7 @@ class ipyeos_proxy {
 
         virtual bool base58_to_bytes(const string& s, vector<char>& out);
         virtual bool bytes_to_base58(const char* data, size_t data_size, string& out);
+        virtual void ripemd160(const char *data, size_t data_size, vector<char>& hash);
 
         eos_cb *cb;
     private:
