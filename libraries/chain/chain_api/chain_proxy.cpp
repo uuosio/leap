@@ -33,20 +33,21 @@ int chain_proxy::init(string& config, string& _genesis, string& chain_id, string
     this->cm->init();
     this->c = this->cm->get_controller();
 
-    chain_rpc_api_proxy *api = get_ipyeos_proxy()->cb->new_chain_api(this->c.get());
+    chain_rpc_api_proxy *api = get_ipyeos_proxy()->cb->new_chain_api(this->c);
     this->_api_proxy = std::shared_ptr<chain_rpc_api_proxy>(api);
     return 1;
 }
 
 int chain_proxy::attach(eosio::chain::controller* c) {
-    this->c = std::unique_ptr<eosio::chain::controller>(c);
-    chain_rpc_api_proxy *api = get_ipyeos_proxy()->cb->new_chain_api(this->c.get());
+    this->c = c;
+    chain_rpc_api_proxy *api = get_ipyeos_proxy()->cb->new_chain_api(this->c);
     this->_api_proxy = std::shared_ptr<chain_rpc_api_proxy>(api);
+    this->attached = true;
     return 1;
 }
 
 controller* chain_proxy::get_controller() {
-    return this->c.get();
+    return this->c;
 }
 
 const chainbase::database* chain_proxy::get_database() {

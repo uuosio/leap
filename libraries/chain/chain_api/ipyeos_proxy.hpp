@@ -70,6 +70,8 @@ class ipyeos_proxy {
         virtual chainbase::database *new_database(const string& dir, bool read_only, uint64_t shared_file_size, bool allow_dirty);
         virtual block_log_proxy *new_block_log_proxy(string& block_log_dir);
         virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
+        virtual chain_proxy* chain_attach(void *controller);
+
         virtual void chain_free(chain_proxy* api);
 
         virtual string extract_chain_id_from_snapshot(string& snapshot_dir);

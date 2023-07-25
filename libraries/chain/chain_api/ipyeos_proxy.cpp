@@ -174,6 +174,12 @@ chain_proxy* ipyeos_proxy::chain_new(string& config, string& _genesis, string& c
     return nullptr;
 }
 
+chain_proxy* ipyeos_proxy::chain_attach(void *controller) {
+    chain_proxy *proxy = new chain_proxy();
+    proxy->attach(static_cast<eosio::chain::controller*>(controller));
+    return proxy;
+}
+
 void ipyeos_proxy::chain_free(chain_proxy* c) {
     try {
         if (!c) {
