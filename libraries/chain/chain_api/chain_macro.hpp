@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <fc/io/json.hpp>
 
 using namespace std;
 

@@ -12,6 +12,7 @@
 #include "trace_api_proxy.hpp"
 #include "block_log_proxy.hpp"
 #include "snapshot_proxy.hpp"
+#include "state_history_proxy.hpp"
 #include "apply_context_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
 #include "intrinsics.h"
@@ -48,6 +49,7 @@ public:
 
     virtual chain_rpc_api_proxy *new_chain_api(eosio::chain::controller *c);
     virtual trace_api_proxy *new_trace_api_proxy(void *chain, string& trace_dir, uint32_t slice_stride, int32_t minimum_irreversible_history_blocks, int32_t minimum_uncompressed_irreversible_history_blocks, uint32_t compression_seek_point_stride);
+    virtual state_history_proxy *new_state_history_proxy();
 
     virtual void set_log_level(string& logger_name, int level);
     virtual int get_log_level(string& logger_name);
