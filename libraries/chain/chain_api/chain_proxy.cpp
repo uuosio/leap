@@ -612,6 +612,9 @@ bool chain_proxy::push_transaction(const char *_packed_tx, size_t _packed_tx_siz
         auto max_trx_time = fc::microseconds::maximum();
         auto ret = c->push_transaction(ptrx_meta, _block_deadline, max_trx_time, billed_cpu_time_us, explicit_cpu_bill, subjective_cpu_bill_us);
         result = fc::json::to_string(ret, fc::time_point::maximum());
+        if (ret->except) {
+            return false;
+        }
         return true;
     } CATCH_AND_LOG_EXCEPTION();
     return false;
