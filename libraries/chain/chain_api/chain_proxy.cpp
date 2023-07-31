@@ -646,13 +646,16 @@ string chain_proxy::get_scheduled_transaction(const char *sender_id, size_t send
 }
 
 string chain_proxy::push_scheduled_transaction(string& scheduled_tx_id, string& deadline, uint32_t billed_cpu_time_us) {
-    auto id = transaction_id_type(scheduled_tx_id);
-    auto _deadline = fc::time_point::from_iso_string(deadline);
-    
-    auto max_trx_time = fc::microseconds::maximum();
+    try {
+        auto id = transaction_id_type(scheduled_tx_id);
+        auto _deadline = fc::time_point::from_iso_string(deadline);
+        
+        auto max_trx_time = fc::microseconds::maximum();
 
-    auto ret = c->push_scheduled_transaction(id, _deadline, max_trx_time, billed_cpu_time_us, false);
-    return fc::json::to_string(ret, fc::time_point::maximum());
+        auto ret = c->push_scheduled_transaction(id, _deadline, max_trx_time, billed_cpu_time_us, false);
+        return fc::json::to_string(ret, fc::time_point::maximum());
+    } CATCH_AND_LOG_EXCEPTION();
+    return "";
 }
 
 bool chain_proxy::push_block_from_block_log(void *block_log_ptr, uint32_t block_num) {
