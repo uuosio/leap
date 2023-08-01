@@ -3,8 +3,10 @@
 #include <typeinfo>
 #include <type_traits>
 #include <fc/exception/exception.hpp>
+#include <boost/core/demangle.hpp>
 #include <boost/core/typeinfo.hpp>
 #include <variant>
+#include <typeinfo>
 
 namespace fc {
 
@@ -16,7 +18,8 @@ void from_index(variant& v, int index)
 {
   if constexpr(i >= std::variant_size_v<variant>)
   {
-    FC_THROW_EXCEPTION(fc::assert_exception, "Provided index out of range for variant.");
+    std::string name = boost::core::demangle(typeid(variant).name());
+    FC_THROW_EXCEPTION(fc::assert_exception, "Provided index out of range for variant: ${n}", ("n", name));
   }
   else if (index == 0)
   {
