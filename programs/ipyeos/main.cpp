@@ -172,6 +172,7 @@ static void initialize_logging()
 extern "C" int start_python(int argc, char **argv);
 
 int eos_init(int argc, char** argv);
+int pyeos_init(int argc, char** argv);
 int eos_exec();
 int eos_exec_once();
 
@@ -200,6 +201,10 @@ eos_cb::~eos_cb() {
 
 int eos_cb::init(int argc, char** argv) {
    return eos_init(argc, argv);
+}
+
+int eos_cb::init2(int argc, char** argv) {
+   return pyeos_init(argc, argv);
 }
 
 int eos_cb::exec() {
@@ -348,6 +353,7 @@ int try_exec(std::function<int(int argc, char** argv)> fn, int argc, char** argv
    return SUCCESS;
 }
 
+template<typename... plugins>
 int _eos_init(int argc, char** argv)
 {
    uint32_t short_hash = 0;
@@ -365,7 +371,7 @@ int _eos_init(int argc, char** argv)
       .default_http_port = 8888,
       .server_header = nodeos::config::node_executable_name + "/" + appbase::app().version_string()
    });
-   if(!appbase::app().initialize<chain_plugin, net_plugin, producer_plugin, resource_monitor_plugin>(argc, argv, initialize_logging)) {
+   if(!appbase::app().initialize<plugins...>(argc, argv, initialize_logging)) {
       const auto& opts = appbase::app().get_options();
       if( opts.count("help") || opts.count("version") || opts.count("full-version") || opts.count("print-default-config") ) {
          return SUCCESS;
@@ -390,7 +396,17 @@ int _eos_init(int argc, char** argv)
 }
 
 int eos_init(int argc, char** argv) {
-   return try_exec(_eos_init, argc, argv);
+   auto fn = [](int argc, char** argv){
+      return _eos_init<chain_plugin, net_plugin, producer_plugin, resource_monitor_plugin>(argc, argv);
+   };
+   return try_exec(fn, argc, argv);
+}
+
+int pyeos_init(int argc, char** argv) {
+   auto fn = [](int argc, char** argv){
+      return _eos_init<producer_plugin>(argc, argv);
+   };
+   return try_exec(fn, argc, argv);
 }
 
 int eos_exec() {

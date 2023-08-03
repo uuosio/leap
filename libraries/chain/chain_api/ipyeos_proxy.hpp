@@ -35,6 +35,7 @@ public:
     virtual ~eos_cb();
 
     virtual int init(int argc, char** argv);
+    virtual int init2(int argc, char** argv);
     virtual int exec();
     virtual int exec_once();
     virtual void initialize_logging(string& config_path);
@@ -43,6 +44,8 @@ public:
     virtual void *post(void *(*fn)(void *), void *args);
     virtual void *get_database();
     virtual void *get_controller();
+
+    virtual string unpack_native_object(int type, const char *packed_native_object, size_t packed_native_object_size);
 
     virtual string data_dir();
     virtual string config_dir();

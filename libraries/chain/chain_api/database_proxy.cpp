@@ -27,6 +27,27 @@ using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::chain::resource_limits;
 
+class session_impl {
+public:
+    session_impl(chainbase::database::session&& session): session(std::move(session)) {
+    }
+    
+    void squash() {
+        session.squash();
+    }
+    
+    void undo() {
+        session.undo();
+    }
+
+    void push() {
+        session.push();
+    }
+
+    chainbase::database::session session;
+};
+
+
 database_proxy::database_proxy(chainbase::database *db_ptr, bool attach):
 attach(attach),
 db_ptr(db_ptr),
@@ -46,6 +67,38 @@ uint64_t database_proxy::get_free_memory() {
 
 uint64_t database_proxy::get_total_memory() {
     return db.get_segment_manager()->get_size();
+}
+
+int64_t database_proxy::revision() {
+    return db.revision();
+}
+
+void database_proxy::set_revision(int64_t revision) {
+    db.set_revision(revision);
+}
+
+void database_proxy::undo() {
+    db.undo();
+}
+
+void database_proxy::undo_all() {
+    db.undo_all();
+}
+
+void database_proxy::start_undo_session(bool enabled) {
+    _session_impl = std::make_unique<session_impl>(db.start_undo_session(enabled));
+}
+
+void database_proxy::session_squash() {
+    _session_impl->squash();
+}
+
+void database_proxy::session_undo() {
+    _session_impl->undo();
+}
+
+void database_proxy::session_push() {
+    _session_impl->push();
 }
 
 void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data) {
