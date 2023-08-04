@@ -1378,6 +1378,27 @@ BOOST_AUTO_TEST_CASE(private_key_test) {
 }
 
 
+#include <boost/asio.hpp>
+// #include <boost/date_time/posix_time/posix_time.hpp>
+#include <iostream>
+
+void timerExpired(const boost::system::error_code& /*e*/) {
+    std::cout << "Timer expired!" << std::endl;
+}
+
+BOOST_AUTO_TEST_CASE(timer_test) {
+   boost::asio::io_service io;
+   boost::asio::deadline_timer timer(io);
+   // Get the current time
+   boost::posix_time::ptime now = boost::posix_time::microsec_clock::universal_time();
+   // Set the timer to expire five seconds from now
+   boost::posix_time::ptime five_seconds_from_now = now + boost::posix_time::seconds(5);
+   timer.expires_at(five_seconds_from_now);
+   timer.async_wait(&timerExpired);
+   std::cout<<"start"<<std::endl;
+   io.run();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace eosio

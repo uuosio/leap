@@ -915,6 +915,13 @@ struct controller_impl {
       return genesis;
    }
 
+   void print_database_memory_stats() const {
+      int64_t total = this->db.get_segment_manager()->get_size();
+      int64_t free = this->db.get_segment_manager()->get_free_memory();
+      int64_t used = total - free;
+      ilog("+++++++free: ${free}, total ${total}, used: ${used}", ("free", free)("total", total)("used", used));
+   }
+
    void read_from_snapshot( const snapshot_reader_ptr& snapshot, uint32_t blog_start, uint32_t blog_end ) {
       chain_snapshot_header header;
       snapshot->read_section<chain_snapshot_header>([this, &header]( auto &section ){
@@ -954,6 +961,7 @@ struct controller_impl {
 
       controller_index_set::walk_indices([this, &snapshot, &header]( auto utils ){
          using value_t = typename decltype(utils)::index_t::value_type;
+         print_database_memory_stats();
          ilog("++++walk_indices: ${name}", ("name", boost::core::demangle(typeid(value_t).name())));
 
          // skip the table_id_object as its inlined with contract tables section
@@ -1025,12 +1033,15 @@ struct controller_impl {
          });
       });
 
+      print_database_memory_stats();
       ilog("++++read_contract_tables_from_snapshot");
       read_contract_tables_from_snapshot(snapshot);
 
+      print_database_memory_stats();
       ilog("++++authorization.read_from_snapshot");
       authorization.read_from_snapshot(snapshot);
 
+      print_database_memory_stats();
       ilog("++++resource_limits.read_from_snapshot");
       resource_limits.read_from_snapshot(snapshot);
 

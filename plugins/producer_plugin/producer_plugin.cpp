@@ -30,6 +30,8 @@
 #include <algorithm>
 #include <mutex>
 
+#include <ipyeos.hpp>
+
 namespace bmi = boost::multi_index;
 using bmi::hashed_unique;
 using bmi::indexed_by;
@@ -93,8 +95,76 @@ fc::logger        _transient_trx_successful_trace_log;
 const std::string transient_trx_failed_trace_logger_name("transient_trx_failure_tracing");
 fc::logger        _transient_trx_failed_trace_log;
 
+
 namespace eosio {
 
+   struct chain_plugin_proxy {
+
+      chain_plugin_proxy() {
+         proxy = get_ipyeos_proxy_ex();
+         if (!proxy) {
+            chain_plug = app().find_plugin<chain_plugin>();
+         }
+      }
+
+      eosio::chain::controller& chain() const {
+         auto *proxy = get_ipyeos_proxy_ex();
+         if (!proxy) {
+            return chain_plug->chain();
+         }
+         return *static_cast<eosio::chain::controller *>(proxy->cb->get_controller());
+      }
+
+      fc::microseconds get_abi_serializer_max_time() const {
+         if (!proxy) {
+            return chain_plug->get_abi_serializer_max_time();
+         }
+         return fc::microseconds(config::default_abi_serializer_max_time_us);
+      }
+
+      fc::variant get_log_trx_trace(const transaction_trace_ptr& trx_trace ) const {
+         if (!proxy) {
+            return chain_plug->get_log_trx_trace(trx_trace);
+         }
+
+         fc::variant pretty_output;
+         try {
+            abi_serializer::to_log_variant(trx_trace, pretty_output,
+                                             caching_resolver(make_resolver(chain(), get_abi_serializer_max_time(), throw_on_yield::no)),
+                                             get_abi_serializer_max_time());
+         } catch (...) {
+            pretty_output = trx_trace;
+         }
+         return pretty_output;
+      }
+
+      fc::variant get_log_trx(const transaction& trx) const {
+         if (!proxy) {
+            return chain_plug->get_log_trx(trx);
+         }
+
+         fc::variant pretty_output;
+         try {
+            abi_serializer::to_log_variant(trx, pretty_output,
+                                             caching_resolver(make_resolver(chain(), get_abi_serializer_max_time(), throw_on_yield::no)),
+                                             get_abi_serializer_max_time());
+         } catch (...) {
+            pretty_output = trx;
+         }
+         return pretty_output;
+      }
+
+      bool accept_transactions() const {
+         if (!proxy) {
+            return chain_plug->accept_transactions();
+         }
+         return true;
+      }
+
+      chain_plugin* chain_plug = nullptr;
+      ipyeos_proxy *proxy = nullptr;
+   };
+   
    fc::logger& get_producer_plugin_logger() {
       return _log;
    }
@@ -476,7 +546,7 @@ public:
    std::vector<chain::digest_type> _protocol_features_to_activate;
    bool                            _protocol_features_signaled = false; // to mark whether it has been signaled in start_block
 
-   chain_plugin* chain_plug = nullptr;
+   chain_plugin_proxy* chain_plug = nullptr;
 
    compat::channels::transaction_ack::channel_type& _transaction_ack_channel;
 
@@ -1060,8 +1130,10 @@ if( options.count(op_name) ) { \
 
 void producer_plugin_impl::plugin_initialize(const boost::program_options::variables_map& options)
 { 
-   chain_plug = app().find_plugin<chain_plugin>();
-   EOS_ASSERT(chain_plug, plugin_config_exception, "chain_plugin not found" );
+   // chain_plug = app().find_plugin<chain_plugin>();
+   // EOS_ASSERT(chain_plug, plugin_config_exception, "chain_plugin not found" );
+   chain_plug = new chain_plugin_proxy();
+
    _options = &options;
    LOAD_VALUE_SET(options, "producer-name", _producers)
 
@@ -2805,6 +2877,10 @@ void producer_plugin_impl::produce_block() {
 
 void producer_plugin::received_block(uint32_t block_num) {
    my->_received_block = block_num;
+}
+
+bool producer_plugin::on_incoming_block(const chain::signed_block_ptr& block, const std::optional<chain::block_id_type>& block_id, const chain::block_state_ptr& bsp) {
+   return my->on_incoming_block(block, block_id, bsp);
 }
 
 void producer_plugin::log_failed_transaction(const transaction_id_type&    trx_id,

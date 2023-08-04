@@ -18,7 +18,9 @@
 #include <future>
 
 #include "config.hpp"
-#include "ipyeos.hpp"
+
+#include <ipyeos.hpp>
+#include <chain_macro.hpp>
 
 using namespace appbase;
 using namespace eosio;
@@ -183,8 +185,25 @@ void app_quit() {
 void *eos_post(void * (*fn)(void *), void *params) {
    std::promise<void *> promise;
    std::future<void *> future = promise.get_future();
-   appbase::app().get_io_service().post([fn, params, &promise]() {
+   appbase::app().post(appbase::priority::low, [fn, params, &promise]() {
          auto ret = fn(params);
+         promise.set_value(ret);
+      }
+   );
+   return future.get();
+}
+
+bool eos_cb::post_signed_block(const char *raw_block, size_t raw_block_size) {
+   auto block = std::make_shared<signed_block>();
+   fc::raw::unpack(raw_block, raw_block_size, *block);
+
+   std::promise<bool> promise;
+   std::future<bool> future = promise.get_future();
+   appbase::app().post(appbase::priority::high, [block, &promise]() {
+         bool ret = false;
+         try {
+            ret = app().get_plugin<producer_plugin>().on_incoming_block(block, {}, {});
+         } CATCH_AND_LOG_EXCEPTION()
          promise.set_value(ret);
       }
    );
@@ -244,6 +263,7 @@ void eos_cb::print_log(int level, string& logger_name, string& message) {
 }
 
 void eos_cb::quit() {
+   _should_exit = true;
    app_quit();
 }
 
@@ -251,9 +271,25 @@ void* eos_cb::post(void* (*fn)(void *), void *args) {
    return eos_post(fn, args);
 }
 
-void *eos_cb::get_controller() {
-   return (void *)&app().get_plugin<eosio::chain_plugin>().chain();
+void eos_cb::exit() {
+   _should_exit = true;
 }
+
+bool eos_cb::should_exit() {
+   return _should_exit;
+}
+
+void *eos_cb::get_controller() {
+   if (this->controller == nullptr) {
+      this->controller = (void *)&app().get_plugin<eosio::chain_plugin>().chain();
+   }
+   return this->controller;
+}
+
+void eos_cb::set_controller(void *_controller) {
+   this->controller = _controller;
+}
+
 
 void *eos_cb::get_database() {
    return (void *)&app().get_plugin<eosio::chain_plugin>().chain().db();

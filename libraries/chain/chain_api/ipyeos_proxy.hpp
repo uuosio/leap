@@ -41,9 +41,17 @@ public:
     virtual void initialize_logging(string& config_path);
     virtual void print_log(int level, string& logger_name, string& message);
     virtual void quit();
+    
+    virtual void exit();
+    virtual bool should_exit();
+
     virtual void *post(void *(*fn)(void *), void *args);
+    virtual bool post_signed_block(const char *raw_block, size_t raw_block_size);
+
     virtual void *get_database();
+
     virtual void *get_controller();
+    virtual void set_controller(void *controller);
 
     virtual string unpack_native_object(int type, const char *packed_native_object, size_t packed_native_object_size);
 
@@ -60,6 +68,8 @@ public:
     virtual void enable_deep_mind(void *controller);
 private:
     string _chain_config;
+    void *controller = nullptr;
+    bool _should_exit = false;
 };
 
 class ipyeos_proxy {

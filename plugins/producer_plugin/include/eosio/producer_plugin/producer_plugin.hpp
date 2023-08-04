@@ -12,7 +12,8 @@ using boost::signals2::signal;
 
 class producer_plugin : public appbase::plugin<producer_plugin> {
 public:
-   APPBASE_PLUGIN_REQUIRES((chain_plugin)(signature_provider_plugin))
+   // APPBASE_PLUGIN_REQUIRES((chain_plugin)(signature_provider_plugin))
+   APPBASE_PLUGIN_REQUIRES((signature_provider_plugin))
 
    struct runtime_options {
       std::optional<int32_t>   max_transaction_time;
@@ -141,6 +142,9 @@ public:
 
    // thread-safe, called when a new block is received
    void received_block(uint32_t block_num);
+
+   bool on_incoming_block(const chain::signed_block_ptr& block, const std::optional<chain::block_id_type>& block_id, const chain::block_state_ptr& bsp);
+
 
    const std::set<account_name>& producer_accounts() const;
 
