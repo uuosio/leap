@@ -182,17 +182,6 @@ void app_quit() {
     appbase::app().quit();
 }
 
-void *eos_post(void * (*fn)(void *), void *params) {
-   std::promise<void *> promise;
-   std::future<void *> future = promise.get_future();
-   appbase::app().post(appbase::priority::low, [fn, params, &promise]() {
-         auto ret = fn(params);
-         promise.set_value(ret);
-      }
-   );
-   return future.get();
-}
-
 bool eos_cb::post_signed_block(const char *raw_block, size_t raw_block_size) {
    auto block = std::make_shared<signed_block>();
    fc::raw::unpack(raw_block, raw_block_size, *block);
@@ -207,7 +196,13 @@ bool eos_cb::post_signed_block(const char *raw_block, size_t raw_block_size) {
          promise.set_value(ret);
       }
    );
-   return future.get();
+
+   while (!should_exit()) {
+      if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) {
+         return future.get();
+      }
+   }
+   return false;
 }
 
 eos_cb::eos_cb() {
@@ -267,8 +262,20 @@ void eos_cb::quit() {
    app_quit();
 }
 
-void* eos_cb::post(void* (*fn)(void *), void *args) {
-   return eos_post(fn, args);
+void* eos_cb::post(void* (*fn)(void *), void *params) {
+   std::promise<void *> promise;
+   std::future<void *> future = promise.get_future();
+   appbase::app().post(appbase::priority::low, [fn, params, &promise]() {
+         auto ret = fn(params);
+         promise.set_value(ret);
+      }
+   );
+   while (!should_exit()) {
+      if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) {
+         return future.get();
+      }
+   }
+   return nullptr;
 }
 
 void eos_cb::exit() {
