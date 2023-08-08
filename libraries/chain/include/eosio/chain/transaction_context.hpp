@@ -5,6 +5,7 @@
 #include <signal.h>
 
 namespace eosio { namespace chain {
+   class index_event_listener;
 
    struct transaction_checktime_timer {
       public:
@@ -76,7 +77,7 @@ namespace eosio { namespace chain {
          }
 
          void pause_billing_timer();
-         void resume_billing_timer();
+         void resume_billing_timer(fc::microseconds fixed_billed_cpu_time_us = fc::microseconds(0));
 
          uint32_t update_billed_cpu_time( fc::time_point now );
 
@@ -186,6 +187,7 @@ namespace eosio { namespace chain {
             speculative_executed_adjusted_max_transaction_time // prev_billed_cpu_time_us > 0
          };
          tx_cpu_usage_exceeded_reason  tx_cpu_usage_reason = tx_cpu_usage_exceeded_reason::account_cpu_limit;
+         std::unique_ptr<index_event_listener> event_listener;
    };
 
 } }

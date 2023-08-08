@@ -90,6 +90,7 @@ add_library( eosio_chain
              resource_limits.cpp
              block_log.cpp
              transaction_context.cpp
+             index_event_listener.cpp
              eosio_contract.cpp
              eosio_contract_abi.cpp
              eosio_contract_abi_bin.cpp

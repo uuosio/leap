@@ -7,6 +7,7 @@
 #include <eosio/chain/transaction_object.hpp>
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/deep_mind.hpp>
+#include <eosio/chain/index_event_listener.hpp>
 
 #pragma push_macro("N")
 #undef N
@@ -96,6 +97,7 @@ namespace eosio { namespace chain {
    void transaction_context::init(uint64_t initial_net_usage)
    {
       EOS_ASSERT( !is_initialized, transaction_exception, "cannot initialize twice" );
+      event_listener = std::make_unique<index_event_listener>(*this, default_max_database_billed_cpu_time_us);
 
       // set maximum to a semi-valid deadline to allow for pause math and conversion to dates for logging
       if( block_deadline == fc::time_point::maximum() ) block_deadline = start + fc::hours(24*7*52);
@@ -349,7 +351,7 @@ namespace eosio { namespace chain {
 
    void transaction_context::finalize() {
       EOS_ASSERT( is_initialized, transaction_exception, "must first initialize" );
-
+      event_listener.reset();
       // read-only transactions only need net_usage and elapsed in the trace
       if ( is_read_only() ) {
          net_usage = ((net_usage + 7)/8)*8; // Round up to nearest multiple of word size (8 bytes)
@@ -510,13 +512,13 @@ namespace eosio { namespace chain {
       transaction_timer.stop();
    }
 
-   void transaction_context::resume_billing_timer() {
+   void transaction_context::resume_billing_timer(fc::microseconds fixed_billed_cpu_time_us) {
       if( explicit_billed_cpu_time || pseudo_start != fc::time_point() ) return; // either irrelevant or already running
 
       auto now = fc::time_point::now();
       auto paused = now - paused_time;
 
-      pseudo_start = now - billed_time;
+      pseudo_start = now - (billed_time + fixed_billed_cpu_time_us);
       _deadline += paused;
 
       // do not allow to go past block wall clock deadline
