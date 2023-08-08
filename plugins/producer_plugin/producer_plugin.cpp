@@ -161,6 +161,14 @@ namespace eosio {
          return true;
       }
 
+      bool on_produce_block(const signed_block_ptr& block) {
+         if (proxy) {
+            auto raw = fc::raw::pack(*block);
+            return proxy->cb->on_produce_block(raw.data(), raw.size());
+         }
+         return false;
+      }
+
       chain_plugin* chain_plug = nullptr;
       ipyeos_proxy *proxy = nullptr;
    };
@@ -2868,11 +2876,17 @@ void producer_plugin_impl::produce_block() {
           .head_block_num       = chain.head_block_num()});
    }
 
-   ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} "
-        "[trxs: ${count}, lib: ${lib}, confirmed: ${confs}, net: ${net}, cpu: ${cpu}, elapsed: ${et}, time: ${tt}]",
-        ("p", new_bs->header.producer)("id", new_bs->id.str().substr(8, 16))("n", new_bs->block_num)("t", new_bs->header.timestamp)
+   chain_plug->on_produce_block(new_bs->block);
+
+   ilog("Produced block ${id}... #${n} ${index} @ ${t} singer: ${p} "
+        "[trxs: ${count}, lib: ${lib}, confirmed: ${confs}, net: ${net}, cpu: ${cpu}, elapsed: ${et}, time: ${tt}, now: ${now}, transmit: ${transmit} ms]",
+        ("p", new_bs->header.producer)("id", new_bs->id.str().substr(8, 16))("n", new_bs->block_num)
+        ("index", new_bs->block->timestamp.slot % chain::config::producer_repetitions)("t", new_bs->header.timestamp)
         ("count", new_bs->block->transactions.size())("lib", chain.last_irreversible_block_num())("net", br.total_net_usage)
-        ("cpu", br.total_cpu_usage_us)("et", br.total_elapsed_time)("tt", br.total_time)("confs", new_bs->header.confirmed));
+        ("cpu", br.total_cpu_usage_us)("et", br.total_elapsed_time)("tt", br.total_time)("confs", new_bs->header.confirmed)
+        ("now", fc::time_point::now())
+        ("transmit", (new_bs->header.timestamp.to_time_point()-fc::time_point::now()).count() / 1000)
+        );
 }
 
 void producer_plugin::received_block(uint32_t block_num) {

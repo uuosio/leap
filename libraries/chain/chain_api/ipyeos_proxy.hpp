@@ -29,6 +29,8 @@ class chain_rpc_api_proxy;
 class apply_context_proxy;
 class trace_api_proxy;
 
+typedef bool (*fn_on_produce_block)(const char *raw_block, size_t raw_block_size);
+
 class eos_cb {
 public:
     eos_cb();
@@ -40,13 +42,18 @@ public:
     virtual int exec_once();
     virtual void initialize_logging(string& config_path);
     virtual void print_log(int level, string& logger_name, string& message);
+
     virtual void quit();
+    virtual bool is_quiting();
     
     virtual void exit();
     virtual bool should_exit();
 
     virtual void *post(void *(*fn)(void *), void *args);
-    virtual bool post_signed_block(const char *raw_block, size_t raw_block_size);
+    virtual bool post_signed_block(const char *raw_block, size_t raw_block_size, bool _async);
+
+    virtual bool set_on_produce_block_cb(fn_on_produce_block cb);
+    virtual bool on_produce_block(const char *raw_block, size_t raw_block_size);
 
     virtual void *get_database();
 
@@ -70,6 +77,7 @@ private:
     string _chain_config;
     void *controller = nullptr;
     bool _should_exit = false;
+    fn_on_produce_block _on_produce_block = nullptr;
 };
 
 class ipyeos_proxy {
@@ -110,6 +118,9 @@ class ipyeos_proxy {
         virtual void enable_debug(bool debug);
         virtual bool is_debug_enabled();
 
+        virtual void enable_tx_speculation();
+        virtual bool is_tx_speculation_enabled();
+
         virtual void set_worker_process(bool worker_process);
         virtual bool is_worker_process();
 
@@ -131,6 +142,7 @@ class ipyeos_proxy {
         string last_error;
         std::shared_ptr<apply_context_proxy> _apply_context_proxy;
         bool debug_enabled = false;
+        bool tx_speculation_enabled = false;
 };
 
 typedef void (*fn_init_ipyeos_proxy)(ipyeos_proxy *proxy);
