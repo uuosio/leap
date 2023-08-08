@@ -102,7 +102,7 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
                 // account_name         name; //< name should not be changed within a chainbase modifier lambda
                 // block_timestamp_type creation_date;
                 // vector<char>          abi;
-                _obj.name = __obj.name;
+                FC_ASSERT(_obj.name == __obj.name, "name should not be changed within a chainbase modifier lambda");
                 _obj.creation_date = __obj.creation_date;
                 _obj.abi.assign(__obj.abi.data(), __obj.abi.size());
             MODIFY_END()
@@ -125,7 +125,7 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
                 // uint32_t              flags = 0;
                 // uint8_t               vm_type = 0;
                 // uint8_t               vm_version = 0;
-                _obj.name = __obj.name; //< name should not be changed within a chainbase modifier lambda
+                FC_ASSERT(_obj.name == __obj.name, "name should not be changed within a chainbase modifier lambda");
                 _obj.recv_sequence = __obj.recv_sequence;
                 _obj.auth_sequence = __obj.auth_sequence;
                 _obj.code_sequence = __obj.code_sequence;
@@ -162,10 +162,11 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
                 // permission_name                   name; ///< human-readable name for the permission (should not be changed within a chainbase modifier lambda)
                 // time_point                        last_updated; ///< the last time this authority was updated
                 // authority_                        auth; ///< authority required to execute this permission
+                FC_ASSERT(_obj.owner == __obj.owner, "owner should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.name == __obj.name, "name should not be changed within a chainbase modifier lambda");
+
                 _obj.usage_id = __obj.usage_id;
                 _obj.parent = __obj.parent;
-                _obj.owner = __obj.owner;
-                _obj.name = __obj.name;
                 _obj.last_updated = __obj.last_updated;
 
                 _obj.auth.threshold = __obj.auth.threshold;
@@ -224,8 +225,8 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
                 // uint64_t             primary_key; //< primary_key should not be changed within a chainbase modifier lambda
                 // account_name         payer;
                 // vector<char>         value;
-                _obj.t_id = __obj.t_id;
-                _obj.primary_key = __obj.primary_key;
+                FC_ASSERT(_obj.t_id == __obj.t_id, "t_id should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.primary_key == __obj.primary_key, "primary_key should not be changed within a chainbase modifier lambda");
                 _obj.payer = __obj.payer;
                 _obj.value.assign(__obj.value.data(), __obj.value.size());
             MODIFY_END()
@@ -299,8 +300,11 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             HANDLE_DATABASE_OBJECT_FIND_BY_KEY(transaction, 1, by_trx_id, transaction_id_type);
             HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(transaction, 2, by_expiration, time_point_sec, transaction_object::id_type);
             MODIFY_BEGIN(transaction)
+                // id_type             id;
+                // time_point_sec      expiration;
+                // transaction_id_type trx_id; //< trx_id should not be changed within a chainbase modifier lambda
+                FC_ASSERT(_obj.trx_id == __obj.trx_id, "trx_id should not be changed within a chainbase modifier lambda");
                 _obj.expiration = __obj.expiration;
-                _obj.trx_id = __obj.trx_id;
             MODIFY_END()
         }
 
@@ -317,9 +321,15 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             HANDLE_DATABASE_OBJECT_FIND_BY_ID(table_id)
             HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(table_id, 1, by_code_scope_table, account_name, scope_name, table_name);
             MODIFY_BEGIN(table_id)
-                _obj.code = __obj.code;
-                _obj.scope = __obj.scope;
-                _obj.table = __obj.table;
+                // id_type        id;
+                // account_name   code;  //< code should not be changed within a chainbase modifier lambda
+                // scope_name     scope; //< scope should not be changed within a chainbase modifier lambda
+                // table_name     table; //< table should not be changed within a chainbase modifier lambda
+                // account_name   payer;
+                // uint32_t       count = 0; /// the number of elements in the table
+                FC_ASSERT(_obj.code == __obj.code, "code should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.scope == __obj.scope, "scope should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.table == __obj.table, "table should not be changed within a chainbase modifier lambda");
                 _obj.payer = __obj.payer;
                 _obj.count = __obj.count;
             MODIFY_END()
@@ -349,9 +359,18 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 3, by_delay, time_point, generated_transaction_object::id_type);
             HANDLE_DATABASE_OBJECT_FIND_BY_COMPOSITE_KEY(generated_transaction, 4, by_sender_id, account_name, uint128_t);
             MODIFY_BEGIN(generated_transaction)
-                _obj.trx_id = __obj.trx_id;
-                _obj.sender = __obj.sender;
-                _obj.sender_id = __obj.sender_id;
+                // id_type                       id;
+                // transaction_id_type           trx_id; //< trx_id should not be changed within a chainbase modifier lambda
+                // account_name                  sender; //< sender should not be changed within a chainbase modifier lambda
+                // uint128_t                     sender_id = 0; /// ID given this transaction by the sender (should not be changed within a chainbase modifier lambda)
+                // account_name                  payer;
+                // time_point                    delay_until; /// this generated transaction will not be applied until the specified time
+                // time_point                    expiration; /// this generated transaction will not be applied after this time
+                // time_point                    published;
+                // shared_blob                   packed_trx;
+                FC_ASSERT(_obj.trx_id == __obj.trx_id, "trx_id should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.sender == __obj.sender, "sender should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.sender_id == __obj.sender_id, "sender_id should not be changed within a chainbase modifier lambda");
                 _obj.payer = __obj.payer;
                 _obj.delay_until = __obj.delay_until;
                 _obj.expiration = __obj.expiration;
@@ -375,7 +394,8 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             // int64_t net_weight = -1;
             // int64_t cpu_weight = -1;
             // int64_t ram_bytes = -1;
-                _obj.owner = __obj.owner;
+                FC_ASSERT(_obj.owner == __obj.owner, "owner should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.pending == __obj.pending, "pending should not be changed within a chainbase modifier lambda");
                 _obj.net_weight = __obj.net_weight;
                 _obj.cpu_weight = __obj.cpu_weight;
                 _obj.ram_bytes = __obj.ram_bytes; 
@@ -395,7 +415,7 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             // usage_accumulator        net_usage;
             // usage_accumulator        cpu_usage;
             // uint64_t                 ram_usage = 0;
-                _obj.owner = __obj.owner;
+                FC_ASSERT(_obj.owner == __obj.owner, "owner should not be changed within a chainbase modifier lambda");
                 _obj.net_usage = __obj.net_usage;
                 _obj.cpu_usage = __obj.cpu_usage;
                 _obj.ram_usage = __obj.ram_usage;
@@ -483,7 +503,8 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             HANDLE_DATABASE_OBJECT_FIND_BY_ID(account_ram_correction)
             HANDLE_DATABASE_OBJECT_FIND_BY_KEY(account_ram_correction, 1, by_name, account_name)
             MODIFY_BEGIN(account_ram_correction)
-                _obj.name = __obj.name; //< name should not be changed within a chainbase modifier lambda
+                FC_ASSERT(_obj.name == __obj.name, "name should not be changed within a chainbase modifier lambda");
+                // _obj.name = __obj.name; //< name should not be changed within a chainbase modifier lambda
                 _obj.ram_correction = __obj.ram_correction;
             MODIFY_END()
         }
@@ -506,12 +527,12 @@ int32_t database_proxy::modify(int32_t tp, int32_t index_position, const char *r
             // uint32_t     first_block_used;
             // uint8_t      vm_type = 0; //< vm_type should not be changed within a chainbase modifier lambda
             // uint8_t      vm_version = 0; //< vm_version should not be changed within a chainbase modifier lambda
-                _obj.code_hash = __obj.code_hash;
+                FC_ASSERT(_obj.code_hash == __obj.code_hash, "code_hash should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.vm_type == __obj.vm_type, "vm_type should not be changed within a chainbase modifier lambda");
+                FC_ASSERT(_obj.vm_version == __obj.vm_version, "vm_version should not be changed within a chainbase modifier lambda");
                 _obj.code.assign(__obj.code.data(), __obj.code.size());
                 _obj.code_ref_count = __obj.code_ref_count;
                 _obj.first_block_used = __obj.first_block_used;
-                _obj.vm_type = __obj.vm_type;
-                _obj.vm_version = __obj.vm_version;
             MODIFY_END()
         }
         if (database_header_object_type == tp) {
