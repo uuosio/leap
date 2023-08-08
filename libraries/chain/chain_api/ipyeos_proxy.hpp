@@ -118,8 +118,8 @@ class ipyeos_proxy {
         virtual void enable_debug(bool debug);
         virtual bool is_debug_enabled();
 
-        virtual void enable_tx_speculation();
-        virtual bool is_tx_speculation_enabled();
+        virtual void enable_adjust_cpu_billing(bool enabled);
+        virtual bool is_adjust_cpu_billing_enabled();
 
         virtual void set_worker_process(bool worker_process);
         virtual bool is_worker_process();
@@ -142,7 +142,7 @@ class ipyeos_proxy {
         string last_error;
         std::shared_ptr<apply_context_proxy> _apply_context_proxy;
         bool debug_enabled = false;
-        bool tx_speculation_enabled = false;
+        bool adjust_cpu_billing_enabled = false;
 };
 
 typedef void (*fn_init_ipyeos_proxy)(ipyeos_proxy *proxy);

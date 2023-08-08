@@ -247,6 +247,14 @@ bool ipyeos_proxy::is_debug_enabled() {
     return this->debug_enabled;
 }
 
+void ipyeos_proxy::enable_adjust_cpu_billing(bool enabled) {
+    adjust_cpu_billing_enabled = enabled;
+}
+
+bool ipyeos_proxy::is_adjust_cpu_billing_enabled() {
+    return adjust_cpu_billing_enabled;
+}
+
 void ipyeos_proxy::set_worker_process(bool worker_process) {
     s_worker_process = worker_process;
 }

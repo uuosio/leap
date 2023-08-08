@@ -27,8 +27,8 @@ namespace eosio { namespace chain {
         void on_remove_begin(const char *value_type_name, const void *obj) override;
         void on_remove_end(const char *value_type_name, const void *obj) override;
 
-        void on_event_begin(const char *value_type_name);
-        void on_event_end(const char *value_type_name);
+        void on_event_begin(const char* function, const char *value_type_name);
+        void on_event_end(const char* function, const char *value_type_name);
     private:
         transaction_context& tx_context;
         int64_t start_billing_cpu_time_us;
