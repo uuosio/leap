@@ -90,14 +90,22 @@ namespace eosio { namespace chain {
 
    void wasm_interface::apply( const digest_type& code_hash, const uint8_t& vm_type, const uint8_t& vm_version, apply_context& context ) {
       auto *proxy = get_ipyeos_proxy_ex();
+      if (proxy) {
+         proxy->get_apply_context_proxy()->set_context(&context);
+      }
+
+      auto on_exit_scope = fc::make_scoped_exit([&](){
+         if (proxy) {
+            proxy->get_apply_context_proxy()->set_context(nullptr);
+         }
+      });
+
       if (proxy != nullptr && proxy->is_debug_enabled()) {
          auto on_exit_scope = fc::make_scoped_exit([&](){
             context.trx_context.resume_billing_timer();
-            proxy->get_apply_context_proxy()->set_context(nullptr);
          });
 
          context.trx_context.pause_billing_timer();
-         proxy->get_apply_context_proxy()->set_context(&context);
 
          uint64_t receiver = context.get_receiver().to_uint64_t();
          uint64_t first_receiver = context.get_action().account.to_uint64_t();
