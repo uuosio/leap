@@ -182,9 +182,16 @@ void app_quit() {
     appbase::app().quit();
 }
 
-bool eos_cb::post_signed_block(const char *raw_block, size_t raw_block_size) {
+bool eos_cb::post_signed_block(const char *raw_block, size_t raw_block_size, bool _async) {
    auto block = std::make_shared<signed_block>();
    fc::raw::unpack(raw_block, raw_block_size, *block);
+
+   if (!_async) {
+      try {
+         return app().get_plugin<producer_plugin>().on_incoming_block(block, {}, {});
+      } CATCH_AND_LOG_EXCEPTION()
+      return false;
+   }
 
    std::promise<bool> promise;
    std::future<bool> future = promise.get_future();
@@ -201,6 +208,18 @@ bool eos_cb::post_signed_block(const char *raw_block, size_t raw_block_size) {
       if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) {
          return future.get();
       }
+   }
+   return false;
+}
+
+bool eos_cb::set_on_produce_block_cb(fn_on_produce_block cb) {
+   _on_produce_block = cb;
+   return true;
+}
+
+bool eos_cb::on_produce_block(const char *raw_block, size_t raw_block_size) {
+   if (_on_produce_block != nullptr) {
+      return _on_produce_block(raw_block, raw_block_size);
    }
    return false;
 }
@@ -260,6 +279,10 @@ void eos_cb::print_log(int level, string& logger_name, string& message) {
 void eos_cb::quit() {
    _should_exit = true;
    app_quit();
+}
+
+bool eos_cb::is_quiting() {
+   return appbase::app().is_quiting();
 }
 
 void* eos_cb::post(void* (*fn)(void *), void *params) {
@@ -470,9 +493,13 @@ int _eos_exec_once() {
    (void)work;
    bool more = true;
 
+   // if (exec.get_priority_queue().size() == 0) {
+   //    more = io_serv.poll();
+   // }
    io_serv.poll(); // queue up any ready; allowing high priority item to get into the queue
    // execute the highest priority item
    more = exec.execute_highest();
+   return more;
    if (!more) {
       more = io_serv.run_one();
    }
