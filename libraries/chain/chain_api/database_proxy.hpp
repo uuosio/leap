@@ -12,7 +12,7 @@ namespace chainbase {
     class database;
 }
 
-class session_impl;
+class session_impl_proxy;
 
 typedef int32_t (*fn_data_handler)(int32_t tp, char *data, size_t size, void* custom_data);
 
@@ -58,5 +58,5 @@ private:
     bool attach = false;
     chainbase::database *db_ptr = nullptr;
     chainbase::database& db;
-    std::unique_ptr<session_impl> _session_impl;
+    std::unique_ptr<session_impl_proxy> _session_impl_proxy;
 };

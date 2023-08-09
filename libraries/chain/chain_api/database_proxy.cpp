@@ -27,9 +27,9 @@ using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::chain::resource_limits;
 
-class session_impl {
+class session_impl_proxy {
 public:
-    session_impl(chainbase::database::session&& session): session(std::move(session)) {
+    session_impl_proxy(chainbase::database::session&& session): session(std::move(session)) {
     }
     
     void squash() {
@@ -86,19 +86,19 @@ void database_proxy::undo_all() {
 }
 
 void database_proxy::start_undo_session(bool enabled) {
-    _session_impl = std::make_unique<session_impl>(db.start_undo_session(enabled));
+    _session_impl_proxy = std::make_unique<session_impl_proxy>(db.start_undo_session(enabled));
 }
 
 void database_proxy::session_squash() {
-    _session_impl->squash();
+    _session_impl_proxy->squash();
 }
 
 void database_proxy::session_undo() {
-    _session_impl->undo();
+    _session_impl_proxy->undo();
 }
 
 void database_proxy::session_push() {
-    _session_impl->push();
+    _session_impl_proxy->push();
 }
 
 void database_proxy::set_data_handler(fn_data_handler handler, void *custom_data) {
