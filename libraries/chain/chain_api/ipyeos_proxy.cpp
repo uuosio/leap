@@ -25,6 +25,8 @@
 #include <eosio/chain/resource_limits.hpp>
 #include <eosio/chain/resource_limits_private.hpp>
 
+#include <eosio/chain/index_event_listener.hpp>
+
 #include <fc/io/json.hpp>
 #include <dlfcn.h>
 
@@ -109,6 +111,7 @@ bool ipyeos_proxy::set_chain_config(void *controller, const string& config) {
 
 ipyeos_proxy::ipyeos_proxy(eos_cb *cb) {
     this->cb = cb;
+    max_database_cpu_billing_time_us = default_max_database_cpu_billing_time_us;
     this->_apply_context_proxy = std::make_shared<apply_context_proxy>();
 }
 
@@ -253,6 +256,14 @@ void ipyeos_proxy::enable_adjust_cpu_billing(bool enabled) {
 
 bool ipyeos_proxy::is_adjust_cpu_billing_enabled() {
     return adjust_cpu_billing_enabled;
+}
+
+void ipyeos_proxy::set_max_database_cpu_billing_time_us(int64_t us) {
+    max_database_cpu_billing_time_us = us;
+}
+
+int64_t ipyeos_proxy::get_max_database_cpu_billing_time_us() {
+    return max_database_cpu_billing_time_us;
 }
 
 void ipyeos_proxy::set_worker_process(bool worker_process) {

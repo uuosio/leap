@@ -2,7 +2,6 @@
 
 #include <eosio/chain/types.hpp>
 #include <eosio/chain/transaction_context.hpp>
-#include <eosio/chain/index_event_listener.hpp>
 
 #include <eosio/chain/account_object.hpp>
 #include <eosio/chain/permission_object.hpp>
@@ -17,15 +16,23 @@
 #include <eosio/chain/code_object.hpp>
 #include <eosio/chain/database_header_object.hpp>
 
+#include <eosio/chain/index_event_listener.hpp>
+
 #include <ipyeos.hpp>
 
 namespace eosio { namespace chain {
 
-index_event_listener::index_event_listener(transaction_context& tx_context, int64_t max_billed_cpu_time_us):
+index_event_listener::index_event_listener(transaction_context& tx_context):
 tx_context(tx_context),
-start_billing_cpu_time_us(0),
-max_billed_cpu_time_us(max_billed_cpu_time_us)
+start_cpu_billing_time_us(0)
 {
+    auto proxy = get_ipyeos_proxy_ex();
+    if (proxy) {
+        max_database_cpu_billing_time_us = proxy->get_max_database_cpu_billing_time_us();
+    } else {
+        max_database_cpu_billing_time_us = default_max_database_cpu_billing_time_us;
+    }
+
     FC_ASSERT(!get_undo_index_events(), "undo_index_events already set");
     set_undo_index_events(this);
 }
@@ -72,8 +79,8 @@ void index_event_listener::on_event_begin(const char* function, const std::type_
     }
 
 
-    FC_ASSERT(start_billing_cpu_time_us == 0, "start_billing_cpu_time_us should be 0");
-    start_billing_cpu_time_us = fc::time_point::now().time_since_epoch().count();
+    FC_ASSERT(start_cpu_billing_time_us == 0, "start_cpu_billing_time_us should be 0");
+    start_cpu_billing_time_us = fc::time_point::now().time_since_epoch().count();
     tx_context.pause_billing_timer();
 }
 
@@ -108,12 +115,12 @@ void index_event_listener::on_event_end(const char* function, const std::type_in
         return;
     }
 
-    int64_t billed_cpu_time_us = fc::time_point::now().time_since_epoch().count() - start_billing_cpu_time_us;
-    start_billing_cpu_time_us = 0;
+    int64_t billed_cpu_time_us = fc::time_point::now().time_since_epoch().count() - start_cpu_billing_time_us;
+    start_cpu_billing_time_us = 0;
 
-    if (billed_cpu_time_us > max_billed_cpu_time_us) {
+    if (billed_cpu_time_us > max_database_cpu_billing_time_us) {
         wlog("${func}: cost: ${billed_cpu_time_us} us, obj: ${obj})", ("billed_cpu_time_us", billed_cpu_time_us)("func", function)("obj", boost::core::demangle(value_type_info.name())));
-        billed_cpu_time_us = max_billed_cpu_time_us;
+        billed_cpu_time_us = max_database_cpu_billing_time_us;
     } else {
         dlog("${func}: cost: ${billed_cpu_time_us} us, obj: ${obj})", ("billed_cpu_time_us", billed_cpu_time_us)("func", function)("obj", boost::core::demangle(value_type_info.name())));
     }

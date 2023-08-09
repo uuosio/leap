@@ -2,7 +2,7 @@
 
 #include <chainbase/undo_index_events.hpp>
 
-static const int64_t default_max_database_billed_cpu_time_us = 100;
+static const int64_t default_max_database_cpu_billing_time_us = 100;
 
 namespace eosio { namespace chain {
     using namespace chainbase;
@@ -11,7 +11,7 @@ namespace eosio { namespace chain {
 
     class index_event_listener: public chainbase::undo_index_events {
     public:
-        index_event_listener(transaction_context& tx_context, int64_t max_billed_cpu_time_us);
+        index_event_listener(transaction_context& tx_context);
         virtual ~index_event_listener();
 
         void on_find_begin(const std::type_info& key_type_info, const std::type_info& value_type_info, const void *key) override;
@@ -33,7 +33,7 @@ namespace eosio { namespace chain {
         void on_event_end(const char* function, const std::type_info& value_type_info);
     private:
         transaction_context& tx_context;
-        int64_t start_billing_cpu_time_us;
-        int64_t max_billed_cpu_time_us;
+        int64_t start_cpu_billing_time_us;
+        int64_t max_database_cpu_billing_time_us;
     };
 }}

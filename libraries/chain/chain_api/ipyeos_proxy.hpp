@@ -121,6 +121,9 @@ class ipyeos_proxy {
         virtual void enable_adjust_cpu_billing(bool enabled);
         virtual bool is_adjust_cpu_billing_enabled();
 
+        virtual void set_max_database_cpu_billing_time_us(int64_t us);
+        virtual int64_t get_max_database_cpu_billing_time_us();
+
         virtual void set_worker_process(bool worker_process);
         virtual bool is_worker_process();
 
@@ -143,6 +146,7 @@ class ipyeos_proxy {
         std::shared_ptr<apply_context_proxy> _apply_context_proxy;
         bool debug_enabled = false;
         bool adjust_cpu_billing_enabled = false;
+        int64_t max_database_cpu_billing_time_us = 100;
 };
 
 typedef void (*fn_init_ipyeos_proxy)(ipyeos_proxy *proxy);

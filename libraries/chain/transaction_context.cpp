@@ -97,7 +97,7 @@ namespace eosio { namespace chain {
    void transaction_context::init(uint64_t initial_net_usage)
    {
       EOS_ASSERT( !is_initialized, transaction_exception, "cannot initialize twice" );
-      event_listener = std::make_unique<index_event_listener>(*this, default_max_database_billed_cpu_time_us);
+      event_listener = std::make_unique<index_event_listener>(*this);
 
       // set maximum to a semi-valid deadline to allow for pause math and conversion to dates for logging
       if( block_deadline == fc::time_point::maximum() ) block_deadline = start + fc::hours(24*7*52);
