@@ -3,6 +3,8 @@
 #include <chainbase/undo_index_events.hpp>
 
 static const int64_t default_max_database_cpu_billing_time_us = 100;
+static const int64_t default_max_total_database_cpu_usage_us = 10000;
+static const int64_t default_max_total_time_diff_us = 1000;
 
 namespace eosio { namespace chain {
     using namespace chainbase;
@@ -35,5 +37,8 @@ namespace eosio { namespace chain {
         transaction_context& tx_context;
         int64_t start_cpu_billing_time_us;
         int64_t max_database_cpu_billing_time_us;
+        int64_t start_time_diff_us = 0;
+        int64_t total_time_diff_us = 0;
+        int64_t total_database_cpu_usage_us = 0;
     };
 }}

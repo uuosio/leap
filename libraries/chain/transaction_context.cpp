@@ -512,14 +512,17 @@ namespace eosio { namespace chain {
       transaction_timer.stop();
    }
 
-   void transaction_context::resume_billing_timer(fc::microseconds fixed_billed_cpu_time_us) {
+   void transaction_context::resume_billing_timer(fc::microseconds adjusted_cpu_time_us) {
       if( explicit_billed_cpu_time || pseudo_start != fc::time_point() ) return; // either irrelevant or already running
 
       auto now = fc::time_point::now();
       auto paused = now - paused_time;
-
-      pseudo_start = now - (billed_time + fixed_billed_cpu_time_us);
-      _deadline += paused;
+      EOS_ASSERT( paused >= adjusted_cpu_time_us, transaction_exception,
+                  "paused time less than adjusted time, paused: ${paused}, adjusted_time: ${adjusted_cpu_time_us}",
+                  ("paused", paused)("adjusted_cpu_time_us", adjusted_cpu_time_us)
+               );
+      pseudo_start = now - (billed_time + adjusted_cpu_time_us);
+      _deadline += (paused - adjusted_cpu_time_us);
 
       // do not allow to go past block wall clock deadline
       if( block_deadline < _deadline ) {
