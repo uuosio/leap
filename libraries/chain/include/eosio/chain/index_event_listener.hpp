@@ -14,7 +14,12 @@ namespace eosio { namespace chain {
     class index_event_listener: public chainbase::undo_index_events {
     public:
         index_event_listener(transaction_context& tx_context);
+        index_event_listener(const index_event_listener& other) = delete;
+        index_event_listener(index_event_listener&& other) = delete;
         virtual ~index_event_listener();
+
+        index_event_listener& operator=(const index_event_listener& other) = delete;
+        index_event_listener& operator=(index_event_listener&& other) = delete;
 
         void on_find_begin(const std::type_info& key_type_info, const std::type_info& value_type_info, const void *key) override;
         void on_find_end(const std::type_info& key_type_info, const std::type_info& value_type_info, const void *key) override;

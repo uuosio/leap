@@ -145,6 +145,7 @@ add_library( eosio_chain
               chain_api/database_proxy_create.cpp
               chain_api/block_log_proxy.cpp
               chain_api/key_value_data_index.cpp
+              chain_api/multi_index_proxy.cpp
               chain_api/transaction_proxy.cpp
               chain_api/snapshot_proxy.cpp
 

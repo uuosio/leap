@@ -1,72 +1,38 @@
-#include <eosio/chain/types.hpp>
-#include <eosio/chain/controller.hpp>
-#include <eosio/chain/exceptions.hpp>
-#include <eosio/chain/block.hpp>
-#include <eosio/chain/thread_utils.hpp>
-#include <eosio/chain/contract_types.hpp>
+#include <stdint.h>
 
-#include <fc/bitutil.hpp>
-#include <fc/network/message_buffer.hpp>
-#include <fc/io/json.hpp>
-#include <fc/io/raw.hpp>
-#include <fc/reflect/variant.hpp>
-#include <fc/crypto/rand.hpp>
-#include <fc/exception/exception.hpp>
-#include <fc/time.hpp>
-#include <fc/mutex.hpp>
-#include <fc/network/listener.hpp>
-
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/host_name.hpp>
-#include <boost/asio/steady_timer.hpp>
-
-#include <atomic>
-#include <cmath>
+#include <vector>
 #include <memory>
-#include <new>
 
 using namespace std;
-using namespace boost;
-using namespace eosio::chain;
-
 
 struct key_value_data {
-    uint64_t                first_key;
-    vector<uint64_t>        other_key;
-    vector<char>            value;
+    std::vector<uint64_t> key;
+    std::vector<uint64_t> non_unique_key;
+    std::vector<char> value;
+
+    key_value_data(const std::vector<uint64_t>& k, const std::vector<uint64_t>& k2, const std::vector<char>& v) : key(k), non_unique_key(k2), value(v) {}
 };
 
-struct key_value_less {
-    bool operator()( const vector<uint64_t>& lhs, const vector<uint64_t>& rhs ) const {
-        for (size_t i=0; i<lhs.size(); i++) {
-            if (lhs[i] < rhs[i]) {
-                return true;
-            } else if (lhs[i] > rhs[i]) {
-                return false;
-            }
-        }
-        return false;
-    }
+class key_value_index_impl;
+
+class key_value_index_proxy {
+    public:
+        key_value_index_proxy();
+        virtual ~key_value_index_proxy();
+
+        key_value_index_proxy(const key_value_index_proxy& other) = delete;
+        key_value_index_proxy(key_value_index_proxy&& other) = delete;
+        key_value_index_proxy& operator=(const key_value_index_proxy& other) = delete;
+        key_value_index_proxy& operator=(key_value_index_proxy&& other) = delete;
+
+        virtual bool create(const vector<uint64_t>& key, const vector<uint64_t>& non_unique_key, const vector<char>& value);
+        virtual bool modify(const vector<uint64_t>& key, const vector<uint64_t>& non_unique_key, const vector<char>& value);
+        virtual bool remove(int key_index, const vector<uint64_t>& key);
+
+        virtual bool find_by_key(int key_index, vector<uint64_t>& key, std::vector<char>& result);
+        virtual bool lower_bound_by_key(int key_index, vector<uint64_t>& key, std::vector<char>& result);
+        virtual bool upper_boundby_key(int key_index, vector<uint64_t>& key, std::vector<char>& result);
+        virtual uint64_t row_count();
+    private:
+        std::unique_ptr<key_value_index_impl> impl;
 };
-
-struct by_first_key;
-struct by_key;
-
-typedef multi_index_container<
-    key_value_data,
-    indexed_by<
-        ordered_unique<
-        tag<by_key>,
-        composite_key< key_value_data,
-            member<key_value_data, uint64_t, &key_value_data::first_key>,
-            member<key_value_data, vector<uint64_t>, &key_value_data::other_key>
-        >,
-        composite_key_compare< std::less<>, key_value_less >
-        >,
-        ordered_non_unique<
-            tag< by_first_key >,
-            member< key_value_data, uint64_t, &key_value_data::first_key > >
-        >
-    > key_value_data_index;
-
-FC_REFLECT(key_value_data, (first_key)(other_key)(value))

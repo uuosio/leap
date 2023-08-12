@@ -196,6 +196,30 @@ void ipyeos_proxy::chain_free(chain_proxy* c) {
     } CATCH_AND_LOG_EXCEPTION();
 }
 
+key_value_index_proxy* ipyeos_proxy::new_key_value_index_proxy() {
+    return new key_value_index_proxy();
+}
+
+bool ipyeos_proxy::free_key_value_index_proxy(void *ptr) {
+    if (ptr) {
+        delete static_cast<key_value_index_proxy*>(ptr);
+        return true;
+    }
+    return false;
+}
+
+u64_double_index_proxy* ipyeos_proxy::new_u64_double_index_proxy(int sort_type) {
+    return new u64_double_index_proxy(sort_type);
+}
+
+bool ipyeos_proxy::free_u64_double_index_proxy(void *ptr) {
+    if (ptr) {
+        delete static_cast<u64_double_index_proxy*>(ptr);
+        return true;
+    }
+    return false;
+}
+
 string ipyeos_proxy::extract_chain_id_from_snapshot(string& snapshot_dir) {
     try {
         auto infile = std::ifstream(snapshot_dir, (std::ios::in | std::ios::binary));
