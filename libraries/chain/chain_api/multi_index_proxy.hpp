@@ -17,15 +17,15 @@ public:
     virtual bool create(uint64_t key, double value);
     virtual bool modify(uint64_t key, double old_value, double new_value);
     virtual bool remove(uint64_t key, double old_value);
-    virtual bool find(double secondary, uint64_t& primary);
-    virtual bool lower_bound(double& secondary, uint64_t& primary);
-    virtual bool upper_bound(double& secondary, uint64_t& primary);
+    virtual bool find(uint64_t first, double second);
+    virtual bool lower_bound(uint64_t& first, double& second);
+    virtual bool upper_bound(uint64_t& first, double& second);
 
-    virtual bool first(double& secondary, uint64_t& primary);
-    virtual bool last(double& secondary, uint64_t& primary);
+    virtual bool first(uint64_t& first, double& second);
+    virtual bool last(uint64_t& first, double& second);
 
-    virtual bool pop_first(double& secondary, uint64_t& primary);
-    virtual bool pop_last(double& secondary, uint64_t& primary);
+    virtual bool pop_first(uint64_t& first, double& second);
+    virtual bool pop_last(uint64_t& first, double& second);
 
     virtual uint64_t row_count();
 private:
