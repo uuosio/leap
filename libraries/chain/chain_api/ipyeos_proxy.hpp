@@ -16,6 +16,7 @@
 #include "apply_context_proxy.hpp"
 #include "key_value_data_index.hpp"
 #include "multi_index_proxy.hpp"
+#include "read_write_lock_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
 #include "intrinsics.h"
 
@@ -90,15 +91,20 @@ class ipyeos_proxy {
         virtual apply_context_proxy *get_apply_context_proxy();
         virtual transaction_proxy *get_transaction_proxy();
         virtual vm_api_proxy *get_vm_api_proxy();
+
         virtual snapshot_proxy *new_snapshot_proxy(void *chain);
         virtual database_proxy *new_database_proxy(void *db_ptr, bool attached);
         virtual chainbase::database *new_database(const string& dir, bool read_only, uint64_t shared_file_size, bool allow_dirty);
         virtual block_log_proxy *new_block_log_proxy(string& block_log_dir);
+
         virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
         virtual chain_proxy* chain_attach(void *controller);
 
         virtual key_value_index_proxy* new_key_value_index_proxy();
         virtual bool free_key_value_index_proxy(void *ptr);
+
+        virtual read_write_lock_proxy* read_write_lock_proxy_new(const string& mutex_name);
+        virtual bool read_write_lock_proxy_free(void *ptr);
 
         virtual u64_double_index_proxy* new_u64_double_index_proxy(int sort_type);
         virtual bool free_u64_double_index_proxy(void *ptr);

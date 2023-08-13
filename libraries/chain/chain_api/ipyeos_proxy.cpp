@@ -220,6 +220,18 @@ bool ipyeos_proxy::free_u64_double_index_proxy(void *ptr) {
     return false;
 }
 
+read_write_lock_proxy* ipyeos_proxy::read_write_lock_proxy_new(const string& mutex_name) {
+    return new read_write_lock_proxy(mutex_name);
+}
+
+bool ipyeos_proxy::read_write_lock_proxy_free(void *ptr) {
+    if (ptr) {
+        delete static_cast<read_write_lock_proxy*>(ptr);
+        return true;
+    }
+    return false;
+}
+
 string ipyeos_proxy::extract_chain_id_from_snapshot(string& snapshot_dir) {
     try {
         auto infile = std::ifstream(snapshot_dir, (std::ios::in | std::ios::binary));

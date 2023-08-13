@@ -148,6 +148,7 @@ add_library( eosio_chain
               chain_api/multi_index_proxy.cpp
               chain_api/transaction_proxy.cpp
               chain_api/snapshot_proxy.cpp
+              chain_api/read_write_lock_proxy.cpp
 
              ${CHAIN_EOSVMOC_SOURCES}
              ${CHAIN_EOSVM_SOURCES}
