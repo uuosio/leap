@@ -32,6 +32,8 @@ struct native_contract {
     fn_native_apply apply;
 };
 
+class chain_proxy_impl;
+
 class chain_proxy {
     public:
         chain_proxy();
@@ -77,8 +79,6 @@ class chain_proxy {
         virtual uint32_t fork_db_head_block_num();
         virtual string fork_db_head_block_id();
 
-        virtual string fork_db_head_block_time();
-        virtual string fork_db_head_block_producer();
         virtual uint32_t fork_db_pending_head_block_num();
         virtual string fork_db_pending_head_block_id();
         virtual string fork_db_pending_head_block_time();
@@ -158,15 +158,7 @@ class chain_proxy {
         void load_abi(string& account);
 
     private:
-        string debug_public_key;
-        std::unique_ptr<eosio::chain::chain_manager> cm;
-        eosio::chain::controller *c;
-        std::shared_ptr<chain_rpc_api_proxy> _api_proxy;
-        std::map<std::string, std::shared_ptr<eosio::chain::abi_serializer>> abi_cache;
-        string last_error;
-        bool attached = false;
-
-        std::map<uint64_t, std::shared_ptr<native_contract>> native_contracts;
+        std::unique_ptr<chain_proxy_impl> impl;
 };
 
 extern "C" {
