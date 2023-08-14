@@ -15,6 +15,12 @@ namespace eosio {
         class chain_manager;
         class controller;
         struct abi_serializer;
+        struct block_state;
+        struct transaction_trace;
+        struct packed_transaction;
+        using block_state_ptr = std::shared_ptr<block_state>;
+        using transaction_trace_ptr = std::shared_ptr<transaction_trace>;
+        using packed_transaction_ptr = std::shared_ptr<const packed_transaction>;
     }
 }
 
@@ -22,12 +28,11 @@ namespace chainbase {
     class database;
 }
 
-class block_state_proxy;
-
 typedef int (*fn_native_apply)(uint64_t a, uint64_t b, uint64_t c);
 typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
 
-typedef void (*fn_block_event_listener)(const block_state_proxy *bsp, void *user_data);
+typedef void (*fn_block_event_listener)(const eosio::chain::block_state_ptr *bsp, void *user_data);
+typedef void (*fn_applied_transaction_event_listener)(const eosio::chain::transaction_trace_ptr *trace_ptr, const eosio::chain::packed_transaction_ptr *tx_ptr, void *user_data);
 
 struct native_contract {
     string path;
@@ -58,6 +63,7 @@ class chain_proxy {
 
         virtual bool set_accepted_block_event_listener(fn_block_event_listener _listener, void *user_data);
         virtual bool set_irreversible_block_event_listener(fn_block_event_listener _listener, void *user_data);
+        virtual bool set_applied_transaction_event_listener(fn_applied_transaction_event_listener _listener, void *user_data);
 
         virtual bool finalize_block(string& _priv_keys);
         virtual bool commit_block();

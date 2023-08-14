@@ -10,9 +10,9 @@ public:
         _block_state = bsp;
     }
 
-    block_state_impl(const block_state_impl& other) {
-        _block_state = other._block_state;
-    }
+    // block_state_impl(const block_state_impl& other) {
+    //     _block_state = other._block_state;
+    // }
 
     uint32_t get_block_num() {
         return _block_state->block_num;
@@ -25,9 +25,9 @@ block_state_proxy::block_state_proxy(const block_state_ptr& bsp): impl(std::make
 
 }
 
-block_state_proxy::block_state_proxy(const block_state_proxy& other) {
-    impl = other.impl;
-}
+// block_state_proxy::block_state_proxy(const block_state_proxy& other) {
+//     impl = other.impl;
+// }
 
 block_state_proxy::~block_state_proxy() {
 

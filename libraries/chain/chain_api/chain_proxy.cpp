@@ -78,12 +78,16 @@ private:
 
     std::optional<scoped_connection> accepted_block_connection;
     std::optional<scoped_connection> irreversible_block_connection;
+    std::optional<scoped_connection> applied_transaction_connection;
 
     fn_block_event_listener accepted_block_event_listener;
     void *accepted_block_event_listener_data = nullptr;
 
     fn_block_event_listener irreversible_block_event_listener;
     void *irreversible_block_event_listener_data = nullptr;
+
+    fn_applied_transaction_event_listener applied_transaction_event_listener;
+    void *applied_transaction_event_listener_data = nullptr;
 
     get_info_results info;
     string info_json;
@@ -151,9 +155,7 @@ public:
         accepted_block_event_listener_data = user_data;
         accepted_block_connection = c->accepted_block.connect([this](const block_state_ptr& blk) {
             if (accepted_block_event_listener) {
-                auto bsp = new block_state_proxy(blk);
-                accepted_block_event_listener(bsp, accepted_block_event_listener_data);
-                delete bsp;
+                accepted_block_event_listener(&blk, accepted_block_event_listener_data);
             }
             update_chain_info();
         });
@@ -165,12 +167,21 @@ public:
         irreversible_block_event_listener_data = user_data;
         irreversible_block_connection = c->accepted_block.connect([this](const block_state_ptr& blk) {
             if (accepted_block_event_listener) {
-                auto bsp = new block_state_proxy(blk);
-                irreversible_block_event_listener(bsp, irreversible_block_event_listener_data);
-                delete bsp;
+                irreversible_block_event_listener(&blk, irreversible_block_event_listener_data);
             }
         });
         return true;
+    }
+
+    bool set_applied_transaction_event_listener(fn_applied_transaction_event_listener _listener, void *user_data) {
+        applied_transaction_event_listener = _listener;
+        applied_transaction_event_listener_data = user_data;
+        applied_transaction_connection.emplace(c->applied_transaction.connect(
+            [&](std::tuple<const transaction_trace_ptr&, const packed_transaction_ptr&> t) {
+                if (applied_transaction_event_listener) {
+                    applied_transaction_event_listener(&std::get<0>(t), &std::get<1>(t), applied_transaction_event_listener_data);
+                }
+            }));
     }
 
     void update_chain_info() {
@@ -1083,6 +1094,11 @@ bool chain_proxy::set_accepted_block_event_listener(fn_block_event_listener _lis
 bool chain_proxy::set_irreversible_block_event_listener(fn_block_event_listener _listener, void *user_data) {
     return impl->set_irreversible_block_event_listener(_listener, user_data);
 }
+
+bool chain_proxy::set_applied_transaction_event_listener(fn_applied_transaction_event_listener _listener, void *user_data) {
+    return impl->set_applied_transaction_event_listener(_listener, user_data);
+}
+
 
 int chain_proxy::start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features) {
     return impl->start_block(block_time_since_epoch_ms, confirm_block_count, _new_features);

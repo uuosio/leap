@@ -18,7 +18,7 @@ namespace eosio {
 class block_state_proxy {
 public:
     block_state_proxy(const eosio::chain::block_state_ptr& bsp);
-    block_state_proxy(const block_state_proxy& other);
+    // block_state_proxy(const block_state_proxy& other);
 
     virtual ~block_state_proxy();
 

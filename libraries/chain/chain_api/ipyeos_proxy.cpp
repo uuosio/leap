@@ -232,13 +232,25 @@ bool ipyeos_proxy::read_write_lock_proxy_free(void *ptr) {
     return false;
 }
 
-block_state_proxy *ipyeos_proxy::block_state_proxy_new(void *block_state_proxy_ptr) {
-    return new block_state_proxy(*static_cast<block_state_proxy*>(block_state_proxy_ptr));
+block_state_proxy *ipyeos_proxy::block_state_proxy_new(void *ptr) {
+    return new block_state_proxy(*static_cast<block_state_ptr*>(ptr));
 }
 
 bool ipyeos_proxy::block_state_proxy_free(void *block_state_proxy_ptr) {
     if (block_state_proxy_ptr) {
         delete static_cast<block_state_proxy*>(block_state_proxy_ptr);
+        return true;
+    }
+    return false;
+}
+
+transaction_trace_proxy *ipyeos_proxy::transaction_trace_proxy_new(void *_transaction_trace_ptr) {
+    return new transaction_trace_proxy(*static_cast<transaction_trace_ptr*>(_transaction_trace_ptr));
+}
+
+bool ipyeos_proxy::transaction_trace_proxy_free(void *transaction_trace_proxy_ptr) {
+    if (transaction_trace_proxy_ptr) {
+        delete static_cast<transaction_trace_proxy*>(transaction_trace_proxy_ptr);
         return true;
     }
     return false;
