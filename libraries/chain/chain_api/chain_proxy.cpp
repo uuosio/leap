@@ -6,6 +6,8 @@
 #include <eosio/chain/block_log.hpp>
 #include <eosio/chain/block.hpp>
 
+#include <boost/signals2/connection.hpp>
+
 #include <fc/io/json.hpp>
 #include <fc/io/raw.hpp>
 
@@ -17,7 +19,11 @@
 
 extern "C" ipyeos_proxy *get_ipyeos_proxy();
 
+using namespace std;
+using namespace boost;
 using namespace eosio::chain;
+
+using boost::signals2::scoped_connection;
 
 static std::map<std::filesystem::path, std::shared_ptr<native_contract>> s_native_libraries;
 
@@ -33,6 +39,11 @@ private:
     bool attached = false;
 
     std::map<uint64_t, std::shared_ptr<native_contract>> native_contracts;
+
+    std::optional<scoped_connection> accepted_block_connection;
+
+    fn_accepted_block_event_listener accepted_block_event_listener;
+    void *accepted_block_event_listener_data = nullptr;
 
 public:
     chain_proxy_impl() {
@@ -91,10 +102,23 @@ public:
         return false;
     }
 
+    bool set_accepted_block_event_listener(fn_accepted_block_event_listener _listener, void *user_data) {
+        accepted_block_event_listener = _listener;
+        accepted_block_event_listener_data = user_data;
+        accepted_block_connection = c->accepted_block.connect([this](const block_state_ptr& blk) {
+            if (accepted_block_event_listener) {
+                auto bsp = new block_state_proxy(blk);
+                accepted_block_event_listener(bsp, accepted_block_event_listener_data);
+                delete bsp;
+            }
+        });
+        return true;
+    }
+
     block_timestamp_type calculate_pending_block_time(const eosio::chain::controller& chain) {
-    const fc::time_point     now   = fc::time_point::now();
-    const fc::time_point     base  = std::max<fc::time_point>(now, chain.head_block_time());
-    return block_timestamp_type(base).next();
+        const fc::time_point     now   = fc::time_point::now();
+        const fc::time_point     base  = std::max<fc::time_point>(now, chain.head_block_time());
+        return block_timestamp_type(base).next();
     }
 
     int start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features) {
@@ -961,6 +985,10 @@ void chain_proxy::chain_id(string& result) {
 
 bool chain_proxy::startup(bool initdb) {
     return impl->startup(initdb);
+}
+
+bool chain_proxy::set_accepted_block_event_listener(fn_accepted_block_event_listener _listener, void *user_data) {
+    return impl->set_accepted_block_event_listener(_listener, user_data);
 }
 
 int chain_proxy::start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features) {

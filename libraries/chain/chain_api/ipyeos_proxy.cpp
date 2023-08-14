@@ -232,6 +232,18 @@ bool ipyeos_proxy::read_write_lock_proxy_free(void *ptr) {
     return false;
 }
 
+block_state_proxy *ipyeos_proxy::block_state_proxy_new(void *block_state_proxy_ptr) {
+    return new block_state_proxy(*static_cast<block_state_proxy*>(block_state_proxy_ptr));
+}
+
+bool ipyeos_proxy::block_state_proxy_free(void *block_state_proxy_ptr) {
+    if (block_state_proxy_ptr) {
+        delete static_cast<block_state_proxy*>(block_state_proxy_ptr);
+        return true;
+    }
+    return false;
+}
+
 string ipyeos_proxy::extract_chain_id_from_snapshot(string& snapshot_dir) {
     try {
         auto infile = std::ifstream(snapshot_dir, (std::ios::in | std::ios::binary));

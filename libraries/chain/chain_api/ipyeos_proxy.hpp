@@ -17,6 +17,7 @@
 #include "key_value_data_index.hpp"
 #include "multi_index_proxy.hpp"
 #include "read_write_lock_proxy.hpp"
+#include "block_state_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
 #include "intrinsics.h"
 
@@ -99,6 +100,10 @@ class ipyeos_proxy {
 
         virtual chain_proxy* chain_new(string& config, string& _genesis, string& _chain_id, string& protocol_features_dir, string& snapshot_dir, string& debug_producer_key);
         virtual chain_proxy* chain_attach(void *controller);
+        virtual void chain_free(chain_proxy* api);
+
+        virtual block_state_proxy *block_state_proxy_new(void *block_state_proxy_ptr);
+        virtual bool block_state_proxy_free(void *block_state_proxy_ptr);
 
         virtual key_value_index_proxy* new_key_value_index_proxy();
         virtual bool free_key_value_index_proxy(void *ptr);
@@ -109,7 +114,6 @@ class ipyeos_proxy {
         virtual u64_double_index_proxy* new_u64_double_index_proxy(int sort_type);
         virtual bool free_u64_double_index_proxy(void *ptr);
 
-        virtual void chain_free(chain_proxy* api);
 
         virtual string extract_chain_id_from_snapshot(string& snapshot_dir);
 
