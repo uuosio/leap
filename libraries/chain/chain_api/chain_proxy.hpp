@@ -27,7 +27,7 @@ class block_state_proxy;
 typedef int (*fn_native_apply)(uint64_t a, uint64_t b, uint64_t c);
 typedef int (*fn_native_init)(struct IntrinsicsFuncs* funcs);
 
-typedef void (*fn_accepted_block_event_listener)(const block_state_proxy *bsp, void *user_data);
+typedef void (*fn_block_event_listener)(const block_state_proxy *bsp, void *user_data);
 
 struct native_contract {
     string path;
@@ -55,9 +55,15 @@ class chain_proxy {
         virtual int start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features);
         virtual int abort_block();
         virtual bool startup(bool initdb);
-        virtual bool set_accepted_block_event_listener(fn_accepted_block_event_listener _listener, void *user_data);
+
+        virtual bool set_accepted_block_event_listener(fn_block_event_listener _listener, void *user_data);
+        virtual bool set_irreversible_block_event_listener(fn_block_event_listener _listener, void *user_data);
+
         virtual bool finalize_block(string& _priv_keys);
         virtual bool commit_block();
+
+        virtual string get_info();
+
         virtual string get_block_id_for_num(uint32_t block_num);
         virtual string get_global_properties();
         virtual string get_dynamic_global_properties();

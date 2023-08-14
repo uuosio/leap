@@ -5,6 +5,7 @@
 #include <eosio/chain/webassembly/interface.hpp>
 #include <eosio/chain/block_log.hpp>
 #include <eosio/chain/block.hpp>
+#include <eosio/chain/resource_limits.hpp>
 
 #include <boost/signals2/connection.hpp>
 
@@ -21,12 +22,47 @@ extern "C" ipyeos_proxy *get_ipyeos_proxy();
 
 using namespace std;
 using namespace boost;
+
+using namespace eosio;
 using namespace eosio::chain;
 
 using boost::signals2::scoped_connection;
 
 static std::map<std::filesystem::path, std::shared_ptr<native_contract>> s_native_libraries;
 
+struct get_info_results {
+    string                               server_version;
+    chain::chain_id_type                 chain_id = chain_id_type::empty_chain_id();
+    uint32_t                             head_block_num = 0;
+    uint32_t                             last_irreversible_block_num = 0;
+    chain::block_id_type                 last_irreversible_block_id;
+    chain::block_id_type                 head_block_id;
+    fc::time_point                       head_block_time;
+    account_name                         head_block_producer;
+
+    uint64_t                             virtual_block_cpu_limit = 0;
+    uint64_t                             virtual_block_net_limit = 0;
+
+    uint64_t                             block_cpu_limit = 0;
+    uint64_t                             block_net_limit = 0;
+    //string                               recent_slots;
+    //double                               participation_rate = 0;
+    std::optional<string>                server_version_string;
+    std::optional<uint32_t>              fork_db_head_block_num;
+    std::optional<chain::block_id_type>  fork_db_head_block_id;
+    std::optional<string>                server_full_version_string;
+    std::optional<uint64_t>              total_cpu_weight;
+    std::optional<uint64_t>              total_net_weight;
+    std::optional<uint32_t>              earliest_available_block_num;
+    std::optional<fc::time_point>        last_irreversible_block_time;
+};
+
+FC_REFLECT(get_info_results,
+           (server_version)(chain_id)(head_block_num)(last_irreversible_block_num)(last_irreversible_block_id)
+           (head_block_id)(head_block_time)(head_block_producer)
+           (virtual_block_cpu_limit)(virtual_block_net_limit)(block_cpu_limit)(block_net_limit)
+           (server_version_string)(fork_db_head_block_num)(fork_db_head_block_id)(server_full_version_string)
+           (total_cpu_weight)(total_net_weight)(earliest_available_block_num)(last_irreversible_block_time))
 
 class chain_proxy_impl {
 private:
@@ -41,9 +77,16 @@ private:
     std::map<uint64_t, std::shared_ptr<native_contract>> native_contracts;
 
     std::optional<scoped_connection> accepted_block_connection;
+    std::optional<scoped_connection> irreversible_block_connection;
 
-    fn_accepted_block_event_listener accepted_block_event_listener;
+    fn_block_event_listener accepted_block_event_listener;
     void *accepted_block_event_listener_data = nullptr;
+
+    fn_block_event_listener irreversible_block_event_listener;
+    void *irreversible_block_event_listener_data = nullptr;
+
+    get_info_results info;
+    string info_json;
 
 public:
     chain_proxy_impl() {
@@ -96,13 +139,14 @@ public:
     bool startup(bool initdb) {
         try {
             cm->startup(initdb);
+            update_chain_info();
             return true;
         } CATCH_AND_LOG_EXCEPTION();
         cm.reset();
         return false;
     }
 
-    bool set_accepted_block_event_listener(fn_accepted_block_event_listener _listener, void *user_data) {
+    bool set_accepted_block_event_listener(fn_block_event_listener _listener, void *user_data) {
         accepted_block_event_listener = _listener;
         accepted_block_event_listener_data = user_data;
         accepted_block_connection = c->accepted_block.connect([this](const block_state_ptr& blk) {
@@ -111,8 +155,53 @@ public:
                 accepted_block_event_listener(bsp, accepted_block_event_listener_data);
                 delete bsp;
             }
+            update_chain_info();
         });
         return true;
+    }
+
+    bool set_irreversible_block_event_listener(fn_block_event_listener _listener, void *user_data) {
+        irreversible_block_event_listener = _listener;
+        irreversible_block_event_listener_data = user_data;
+        irreversible_block_connection = c->accepted_block.connect([this](const block_state_ptr& blk) {
+            if (accepted_block_event_listener) {
+                auto bsp = new block_state_proxy(blk);
+                irreversible_block_event_listener(bsp, irreversible_block_event_listener_data);
+                delete bsp;
+            }
+        });
+        return true;
+    }
+
+    void update_chain_info() {
+        const auto& rm = c->get_resource_limits_manager();
+        info = {
+            "",
+            c->get_chain_id(),
+            c->head_block_num(),
+            c->last_irreversible_block_num(),
+            c->last_irreversible_block_id(),
+            c->head_block_id(),
+            c->head_block_time(),
+            c->head_block_producer(),
+            rm.get_virtual_block_cpu_limit(),
+            rm.get_virtual_block_net_limit(),
+            rm.get_block_cpu_limit(),
+            rm.get_block_net_limit(),
+            "", //app().version_string(),
+            c->fork_db_head_block_num(),
+            c->fork_db_head_block_id(),
+            "", //app().full_version_string(),
+            rm.get_total_cpu_weight(),
+            rm.get_total_net_weight(),
+            c->earliest_available_block_num(),
+            c->last_irreversible_block_time()
+        };
+        info_json = fc::json::to_string(info, fc::time_point::maximum());
+    }
+
+    string get_info() {
+        return info_json;
     }
 
     block_timestamp_type calculate_pending_block_time(const eosio::chain::controller& chain) {
@@ -987,8 +1076,12 @@ bool chain_proxy::startup(bool initdb) {
     return impl->startup(initdb);
 }
 
-bool chain_proxy::set_accepted_block_event_listener(fn_accepted_block_event_listener _listener, void *user_data) {
+bool chain_proxy::set_accepted_block_event_listener(fn_block_event_listener _listener, void *user_data) {
     return impl->set_accepted_block_event_listener(_listener, user_data);
+}
+
+bool chain_proxy::set_irreversible_block_event_listener(fn_block_event_listener _listener, void *user_data) {
+    return impl->set_irreversible_block_event_listener(_listener, user_data);
 }
 
 int chain_proxy::start_block(int64_t block_time_since_epoch_ms, uint16_t confirm_block_count, string& _new_features) {
@@ -1005,6 +1098,10 @@ bool chain_proxy::finalize_block(string& _priv_keys) {
 
 bool chain_proxy::commit_block() {
     return impl->commit_block();
+}
+
+string chain_proxy::get_info() {
+    return impl->get_info();
 }
 
 string chain_proxy::get_block_id_for_num(uint32_t block_num ) {
