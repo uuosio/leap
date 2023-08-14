@@ -19,6 +19,7 @@
 #include "read_write_lock_proxy.hpp"
 #include "block_state_proxy.hpp"
 #include "transaction_trace_proxy.hpp"
+#include "signed_block_proxy.hpp"
 #include "../vm_api/vm_api_proxy.hpp"
 #include "intrinsics.h"
 
@@ -108,6 +109,9 @@ class ipyeos_proxy {
 
         virtual transaction_trace_proxy *transaction_trace_proxy_new(void *_transaction_trace_ptr);
         virtual bool transaction_trace_proxy_free(void *transaction_trace_proxy_ptr);
+
+        signed_block_proxy *signed_block_proxy_new(void *_signed_block_ptr);
+        bool signed_block_proxy_free(void *signed_block_proxy_ptr);
 
         virtual key_value_index_proxy* new_key_value_index_proxy();
         virtual bool free_key_value_index_proxy(void *ptr);

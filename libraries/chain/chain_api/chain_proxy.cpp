@@ -182,6 +182,7 @@ public:
                     applied_transaction_event_listener(&std::get<0>(t), &std::get<1>(t), applied_transaction_event_listener_data);
                 }
             }));
+        return true;
     }
 
     void update_chain_info() {

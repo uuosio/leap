@@ -151,6 +151,7 @@ add_library( eosio_chain
               chain_api/read_write_lock_proxy.cpp
               chain_api/block_state_proxy.cpp
               chain_api/transaction_trace_proxy.cpp
+              chain_api/signed_block_proxy.cpp
 
              ${CHAIN_EOSVMOC_SOURCES}
              ${CHAIN_EOSVM_SOURCES}

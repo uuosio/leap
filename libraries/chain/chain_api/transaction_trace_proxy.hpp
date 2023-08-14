@@ -23,7 +23,7 @@ public:
     virtual ~transaction_trace_proxy();
 
     string get_id();
-    uint32_t get_block_num();
+    uint32_t block_num();
     bool is_onblock();
 
 private:

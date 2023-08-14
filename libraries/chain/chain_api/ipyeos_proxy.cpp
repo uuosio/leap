@@ -256,6 +256,18 @@ bool ipyeos_proxy::transaction_trace_proxy_free(void *transaction_trace_proxy_pt
     return false;
 }
 
+signed_block_proxy *ipyeos_proxy::signed_block_proxy_new(void *_signed_block_ptr) {
+    return new signed_block_proxy(*static_cast<signed_block_ptr*>(_signed_block_ptr));
+}
+
+bool ipyeos_proxy::signed_block_proxy_free(void *signed_block_proxy_ptr) {
+    if (signed_block_proxy_ptr) {
+        delete static_cast<signed_block_proxy*>(signed_block_proxy_ptr);
+        return true;
+    }
+    return false;
+}
+
 string ipyeos_proxy::extract_chain_id_from_snapshot(string& snapshot_dir) {
     try {
         auto infile = std::ifstream(snapshot_dir, (std::ios::in | std::ios::binary));

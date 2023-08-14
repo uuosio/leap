@@ -24,7 +24,7 @@ public:
         return _transaction_trace->id.str();
     }
 
-    uint32_t get_block_num() {
+    uint32_t block_num() {
         return _transaction_trace->block_num;
     }
 
@@ -52,8 +52,8 @@ string transaction_trace_proxy::get_id() {
     return impl->get_id();
 }
 
-uint32_t transaction_trace_proxy::get_block_num() {
-    return impl->get_block_num();
+uint32_t transaction_trace_proxy::block_num() {
+    return impl->block_num();
 }
 
 bool transaction_trace_proxy::is_onblock() {

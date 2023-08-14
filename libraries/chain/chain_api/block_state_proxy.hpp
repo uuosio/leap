@@ -22,7 +22,7 @@ public:
 
     virtual ~block_state_proxy();
 
-    uint32_t get_block_num();
+    uint32_t block_num();
 
 private:
     std::shared_ptr<block_state_impl> impl;
