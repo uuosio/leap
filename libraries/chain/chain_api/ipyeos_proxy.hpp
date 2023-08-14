@@ -92,7 +92,18 @@ class ipyeos_proxy {
         virtual ~ipyeos_proxy();
 
         virtual apply_context_proxy *get_apply_context_proxy();
-        virtual transaction_proxy *get_transaction_proxy();
+
+        virtual transaction_proxy *transaction_proxy_new(
+            uint32_t expiration,
+            const char* ref_block_id,
+            size_t ref_block_id_size,
+            uint32_t max_net_usage_words, //fc::unsigned_int
+            uint8_t  max_cpu_usage_ms,    //
+            uint32_t delay_sec            //fc::unsigned_int
+        );
+        virtual transaction_proxy *transaction_proxy_new_ex(signed_transaction_ptr *transaction_ptr);
+        virtual bool transaction_proxy_free(void *transaction_proxy_ptr);
+
         virtual vm_api_proxy *get_vm_api_proxy();
 
         virtual snapshot_proxy *new_snapshot_proxy(void *chain);

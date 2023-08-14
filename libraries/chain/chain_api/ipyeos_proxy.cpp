@@ -118,12 +118,27 @@ ipyeos_proxy::ipyeos_proxy(eos_cb *cb) {
 ipyeos_proxy::~ipyeos_proxy() {
 }
 
-transaction_proxy *ipyeos_proxy::get_transaction_proxy() {
-    static transaction_proxy *proxy = nullptr;
-    if (!proxy) {
-        proxy = new transaction_proxy();
+transaction_proxy *ipyeos_proxy::transaction_proxy_new(
+    uint32_t expiration,
+    const char* ref_block_id,
+    size_t ref_block_id_size,
+    uint32_t max_net_usage_words, //fc::unsigned_int
+    uint8_t  max_cpu_usage_ms,    //
+    uint32_t delay_sec            //fc::unsigned_int
+) {
+    return new transaction_proxy(expiration, ref_block_id, ref_block_id_size, max_net_usage_words, max_cpu_usage_ms, delay_sec);
+}
+
+transaction_proxy *ipyeos_proxy::transaction_proxy_new_ex(signed_transaction_ptr *transaction_ptr) {
+    return new transaction_proxy(*transaction_ptr);
+}
+
+bool ipyeos_proxy::transaction_proxy_free(void *transaction_proxy_ptr) {
+    if (transaction_proxy_ptr) {
+        delete static_cast<transaction_proxy *>(transaction_proxy_ptr);
+        return true;
     }
-    return proxy;
+    return false;
 }
 
 apply_context_proxy *ipyeos_proxy::get_apply_context_proxy() {
