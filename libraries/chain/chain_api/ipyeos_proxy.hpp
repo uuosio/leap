@@ -118,10 +118,12 @@ class ipyeos_proxy {
         virtual block_state_proxy *block_state_proxy_new(void *block_state_proxy_ptr);
         virtual bool block_state_proxy_free(void *block_state_proxy_ptr);
 
-        virtual transaction_trace_proxy *transaction_trace_proxy_new(void *_transaction_trace_ptr);
-        virtual bool transaction_trace_proxy_free(void *transaction_trace_proxy_ptr);
+        virtual transaction_trace_proxy *transaction_trace_proxy_new(transaction_trace_ptr *_transaction_trace_ptr, bool attach);
+        virtual bool transaction_trace_proxy_free(transaction_trace_proxy *transaction_trace_proxy_ptr);
 
-        signed_block_proxy *signed_block_proxy_new(void *_signed_block_ptr);
+        signed_block_proxy *signed_block_proxy_new(signed_block_ptr *_signed_block_ptr);
+        signed_block_proxy *signed_block_proxy_attach(signed_block_ptr *_signed_block_ptr);
+
         bool signed_block_proxy_free(void *signed_block_proxy_ptr);
 
         virtual key_value_index_proxy* new_key_value_index_proxy();

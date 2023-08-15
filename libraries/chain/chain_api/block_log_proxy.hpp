@@ -6,8 +6,12 @@ using namespace std;
 namespace eosio {
     namespace chain {
         class block_log;
+        struct signed_block;
+        using signed_block_ptr = std::shared_ptr<signed_block>;
     }
 }
+
+using namespace eosio::chain;
 
 class ipyeos_proxy;
 
@@ -17,7 +21,7 @@ public:
     ~block_log_proxy();
 
     virtual void *get_block_log_ptr();
-    virtual string read_block_by_num(uint32_t block_num);
+    virtual signed_block_ptr *read_block_by_num(uint32_t block_num);
     virtual string read_block_header_by_num(uint32_t block_num);
     virtual string read_block_id_by_num(uint32_t block_num);
     virtual string read_block_by_id(const string& id);

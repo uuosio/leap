@@ -12,8 +12,18 @@ using namespace eosio::chain;
 
 class transaction_trace_impl {
 public:
-    transaction_trace_impl(const transaction_trace_ptr& bsp) {
-        _transaction_trace = bsp;
+    transaction_trace_impl(transaction_trace_ptr *bsp, bool attach) {
+        if (attach) {
+            _transaction_trace = bsp;
+        } else {
+            _transaction_trace = new transaction_trace_ptr(*bsp);
+        }
+    }
+
+    ~transaction_trace_impl() {
+        if (_transaction_trace) {
+            delete _transaction_trace;
+        }
     }
 
     // transaction_trace_impl(const transaction_trace_impl& other) {
@@ -21,22 +31,22 @@ public:
     // }
 
     string get_id() {
-        return _transaction_trace->id.str();
+        return (*_transaction_trace)->id.str();
     }
 
     uint32_t block_num() {
-        return _transaction_trace->block_num;
+        return (*_transaction_trace)->block_num;
     }
 
     bool is_onblock() {
-        return eosio::chain::is_onblock(*_transaction_trace);
+        return eosio::chain::is_onblock(**_transaction_trace);
     }
 
 private:
-    transaction_trace_ptr _transaction_trace;
+    transaction_trace_ptr *_transaction_trace;
 };
 
-transaction_trace_proxy::transaction_trace_proxy(const transaction_trace_ptr& bsp): impl(std::make_shared<transaction_trace_impl>(bsp)) {
+transaction_trace_proxy::transaction_trace_proxy(transaction_trace_ptr *bsp, bool attach): impl(std::make_shared<transaction_trace_impl>(bsp, attach)) {
 
 }
 

@@ -259,20 +259,24 @@ bool ipyeos_proxy::block_state_proxy_free(void *block_state_proxy_ptr) {
     return false;
 }
 
-transaction_trace_proxy *ipyeos_proxy::transaction_trace_proxy_new(void *_transaction_trace_ptr) {
-    return new transaction_trace_proxy(*static_cast<transaction_trace_ptr*>(_transaction_trace_ptr));
+transaction_trace_proxy *ipyeos_proxy::transaction_trace_proxy_new(transaction_trace_ptr *_transaction_trace_ptr, bool attach) {
+    return new transaction_trace_proxy(_transaction_trace_ptr, attach);
 }
 
-bool ipyeos_proxy::transaction_trace_proxy_free(void *transaction_trace_proxy_ptr) {
+bool ipyeos_proxy::transaction_trace_proxy_free(transaction_trace_proxy *transaction_trace_proxy_ptr) {
     if (transaction_trace_proxy_ptr) {
-        delete static_cast<transaction_trace_proxy*>(transaction_trace_proxy_ptr);
+        delete transaction_trace_proxy_ptr;
         return true;
     }
     return false;
 }
 
-signed_block_proxy *ipyeos_proxy::signed_block_proxy_new(void *_signed_block_ptr) {
-    return new signed_block_proxy(*static_cast<signed_block_ptr*>(_signed_block_ptr));
+signed_block_proxy *ipyeos_proxy::signed_block_proxy_new(signed_block_ptr *_signed_block_ptr) {
+    return new signed_block_proxy(*_signed_block_ptr);
+}
+
+signed_block_proxy *ipyeos_proxy::signed_block_proxy_attach(signed_block_ptr *_signed_block_ptr) {
+    return new signed_block_proxy(_signed_block_ptr);
 }
 
 bool ipyeos_proxy::signed_block_proxy_free(void *signed_block_proxy_ptr) {

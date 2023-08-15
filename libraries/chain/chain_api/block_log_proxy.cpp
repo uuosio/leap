@@ -4,8 +4,6 @@
 #include "block_log_proxy.hpp"
 #include "chain_macro.hpp"
 
-using namespace eosio::chain;
-
 block_log_proxy::block_log_proxy(const string& data_dir) {
     _block_log = std::make_unique<eosio::chain::block_log>(data_dir);
 }
@@ -18,15 +16,16 @@ void *block_log_proxy::get_block_log_ptr() {
     return _block_log.get();
 }
 
-string block_log_proxy::read_block_by_num(uint32_t block_num) {
+signed_block_ptr *block_log_proxy::read_block_by_num(uint32_t block_num) {
     try {
         auto block = _block_log->read_block_by_num(block_num);
         if (!block) {
-            return "";
+            return nullptr;
         }
-        return fc::json::to_string(*block, fc::time_point::maximum());
+        auto ret = new signed_block_ptr(block);
+        return ret;
     } CATCH_AND_LOG_EXCEPTION();
-    return "";
+    return nullptr;
 }
 
 string block_log_proxy::read_block_header_by_num(uint32_t block_num) {

@@ -15,13 +15,17 @@ namespace eosio {
     }
 }
 
+using namespace eosio::chain;
+
 class signed_block_proxy {
 public:
-    signed_block_proxy(const eosio::chain::signed_block_ptr& sbp);
+    signed_block_proxy(const signed_block_ptr& sbp);
+    signed_block_proxy(signed_block_ptr *sbp);
 
     virtual ~signed_block_proxy();
 
     uint32_t block_num();
+    vector<char> pack();
 
 private:
     std::shared_ptr<signed_block_impl> impl;

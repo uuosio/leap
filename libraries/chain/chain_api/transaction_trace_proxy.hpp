@@ -15,9 +15,11 @@ namespace eosio {
     }
 }
 
+using namespace eosio::chain;
+
 class transaction_trace_proxy {
 public:
-    transaction_trace_proxy(const eosio::chain::transaction_trace_ptr& trace);
+    transaction_trace_proxy(transaction_trace_ptr *trace, bool attach);
     // transaction_trace_proxy(const transaction_trace_proxy& other);
 
     virtual ~transaction_trace_proxy();
