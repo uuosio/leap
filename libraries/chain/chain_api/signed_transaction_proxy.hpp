@@ -13,9 +13,9 @@ namespace eosio {
 using namespace std;
 using namespace eosio::chain;
 
-class transaction_proxy {
+class signed_transaction_proxy {
 public:
-    transaction_proxy(
+    signed_transaction_proxy(
         uint32_t expiration,
         const char* ref_block_id,
         size_t ref_block_id_size,
@@ -23,8 +23,8 @@ public:
         uint8_t  max_cpu_usage_ms,    //
         uint32_t delay_sec            //fc::unsigned_int
     );
-    transaction_proxy(signed_transaction_ptr& transaction);
-    virtual ~transaction_proxy();
+    signed_transaction_proxy(signed_transaction_ptr& transaction);
+    virtual ~signed_transaction_proxy();
     virtual void id(vector<char>& result);
     virtual void add_action(uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths);
     virtual bool sign(const char *private_key, size_t size, const char *chain_id, size_t chain_id_size);

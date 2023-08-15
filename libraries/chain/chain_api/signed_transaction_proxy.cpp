@@ -4,13 +4,13 @@
 #include <fc/io/raw.hpp>
 #include <fc/variant.hpp>
 
-#include "transaction_proxy.hpp"
+#include "signed_transaction_proxy.hpp"
 #include "chain_macro.hpp"
 
 using namespace fc;
 using namespace eosio::chain;
 
-transaction_proxy::transaction_proxy(
+signed_transaction_proxy::signed_transaction_proxy(
     uint32_t expiration,
     const char* ref_block_id,
     size_t ref_block_id_size,
@@ -26,19 +26,19 @@ transaction_proxy::transaction_proxy(
     trx->delay_sec = delay_sec;
 }
 
-transaction_proxy::transaction_proxy(signed_transaction_ptr& transaction) {
+signed_transaction_proxy::signed_transaction_proxy(signed_transaction_ptr& transaction) {
     trx = transaction;
 }
 
-transaction_proxy::~transaction_proxy() {
+signed_transaction_proxy::~signed_transaction_proxy() {
 
 }
 
-void transaction_proxy::id(vector<char>& result) {
+void signed_transaction_proxy::id(vector<char>& result) {
     result = fc::raw::pack(trx->id());
 }
 
-void transaction_proxy::add_action(uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths) {
+void signed_transaction_proxy::add_action(uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths) {
     vector<permission_level> auths_;
     for (auto auth : auths) {
         auths_.emplace_back(permission_level{eosio::chain::name(auth.first), eosio::chain::name(auth.second)});
@@ -51,7 +51,7 @@ void transaction_proxy::add_action(uint64_t account, uint64_t name, const char *
     ));
 }
 
-bool transaction_proxy::sign(const char *private_key, size_t size, const char *chain_id, size_t chain_id_size) {
+bool signed_transaction_proxy::sign(const char *private_key, size_t size, const char *chain_id, size_t chain_id_size) {
     try {
         auto _private_key = fc::raw::unpack<fc::crypto::private_key>(private_key, size);
         trx->sign(_private_key, chain_id_type(chain_id, chain_id_size));
@@ -60,7 +60,7 @@ bool transaction_proxy::sign(const char *private_key, size_t size, const char *c
     return false;
 }
 
-void transaction_proxy::pack(bool compress, vector<char>& result) {
+void signed_transaction_proxy::pack(bool compress, vector<char>& result) {
     packed_transaction::compression_type type;
     if (compress) {
         type = packed_transaction::compression_type::zlib;
@@ -71,7 +71,7 @@ void transaction_proxy::pack(bool compress, vector<char>& result) {
     result = fc::raw::pack(packed_trx);
 }
 
-bool transaction_proxy::unpack(const char *raw_tx, size_t size, int result_type, string& result) {
+bool signed_transaction_proxy::unpack(const char *raw_tx, size_t size, int result_type, string& result) {
     try {
         auto trx = fc::raw::unpack<packed_transaction>(raw_tx, size);
         if (result_type == 0) { //packed_transaction

@@ -6,7 +6,8 @@
 #include <memory>
 #include <filesystem>
 
-#include "transaction_proxy.hpp"
+#include "signed_transaction_proxy.hpp"
+#include "packed_transaction_proxy.hpp"
 #include "chain_proxy.hpp"
 #include "database_proxy.hpp"
 #include "trace_api_proxy.hpp"
@@ -93,7 +94,7 @@ class ipyeos_proxy {
 
         virtual apply_context_proxy *get_apply_context_proxy();
 
-        virtual transaction_proxy *transaction_proxy_new(
+        virtual signed_transaction_proxy *transaction_proxy_new(
             uint32_t expiration,
             const char* ref_block_id,
             size_t ref_block_id_size,
@@ -101,8 +102,11 @@ class ipyeos_proxy {
             uint8_t  max_cpu_usage_ms,    //
             uint32_t delay_sec            //fc::unsigned_int
         );
-        virtual transaction_proxy *transaction_proxy_new_ex(signed_transaction_ptr *transaction_ptr);
+        virtual signed_transaction_proxy *transaction_proxy_new_ex(signed_transaction_ptr *transaction_ptr);
         virtual bool transaction_proxy_free(void *transaction_proxy_ptr);
+
+        virtual packed_transaction_proxy *packed_transaction_proxy_new(packed_transaction_ptr *_packed_transaction_ptr, bool attach);
+        virtual bool packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr);
 
         virtual vm_api_proxy *get_vm_api_proxy();
 

@@ -118,7 +118,7 @@ ipyeos_proxy::ipyeos_proxy(eos_cb *cb) {
 ipyeos_proxy::~ipyeos_proxy() {
 }
 
-transaction_proxy *ipyeos_proxy::transaction_proxy_new(
+signed_transaction_proxy *ipyeos_proxy::transaction_proxy_new(
     uint32_t expiration,
     const char* ref_block_id,
     size_t ref_block_id_size,
@@ -126,16 +126,28 @@ transaction_proxy *ipyeos_proxy::transaction_proxy_new(
     uint8_t  max_cpu_usage_ms,    //
     uint32_t delay_sec            //fc::unsigned_int
 ) {
-    return new transaction_proxy(expiration, ref_block_id, ref_block_id_size, max_net_usage_words, max_cpu_usage_ms, delay_sec);
+    return new signed_transaction_proxy(expiration, ref_block_id, ref_block_id_size, max_net_usage_words, max_cpu_usage_ms, delay_sec);
 }
 
-transaction_proxy *ipyeos_proxy::transaction_proxy_new_ex(signed_transaction_ptr *transaction_ptr) {
-    return new transaction_proxy(*transaction_ptr);
+signed_transaction_proxy *ipyeos_proxy::transaction_proxy_new_ex(signed_transaction_ptr *transaction_ptr) {
+    return new signed_transaction_proxy(*transaction_ptr);
 }
 
 bool ipyeos_proxy::transaction_proxy_free(void *transaction_proxy_ptr) {
     if (transaction_proxy_ptr) {
-        delete static_cast<transaction_proxy *>(transaction_proxy_ptr);
+        delete static_cast<signed_transaction_proxy *>(transaction_proxy_ptr);
+        return true;
+    }
+    return false;
+}
+
+packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new(packed_transaction_ptr *_packed_transaction_ptr, bool attach) {
+    return new packed_transaction_proxy(_packed_transaction_ptr, attach);
+}
+
+bool ipyeos_proxy::packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr) {
+    if (packed_transaction_proxy_ptr) {
+        delete packed_transaction_proxy_ptr;
         return true;
     }
     return false;
