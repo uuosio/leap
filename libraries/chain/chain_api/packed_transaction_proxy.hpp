@@ -26,9 +26,9 @@ public:
 
     virtual ~packed_transaction_proxy();
 
-    signed_transaction_ptr *get_signed_transaction();
-    vector<char> pack();
-    string to_json();
+    virtual signed_transaction_ptr *get_signed_transaction();
+    virtual vector<char> pack();
+    virtual string to_json();
 
 private:
     std::shared_ptr<packed_transaction_impl> impl;

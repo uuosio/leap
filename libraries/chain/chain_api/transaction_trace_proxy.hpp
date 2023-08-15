@@ -24,9 +24,9 @@ public:
 
     virtual ~transaction_trace_proxy();
 
-    string get_id();
-    uint32_t block_num();
-    bool is_onblock();
+    virtual string get_id();
+    virtual uint32_t block_num();
+    virtual bool is_onblock();
 
 private:
     std::shared_ptr<transaction_trace_impl> impl;

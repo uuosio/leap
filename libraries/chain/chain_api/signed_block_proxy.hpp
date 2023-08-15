@@ -24,8 +24,8 @@ public:
 
     virtual ~signed_block_proxy();
 
-    uint32_t block_num();
-    vector<char> pack();
+    virtual uint32_t block_num();
+    virtual vector<char> pack();
 
 private:
     std::shared_ptr<signed_block_impl> impl;

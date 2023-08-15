@@ -27,8 +27,8 @@ public:
 
     virtual ~block_state_proxy();
 
-    uint32_t block_num();
-    signed_block_ptr *block();
+    virtual uint32_t block_num();
+    virtual signed_block_ptr *block();
 
 private:
     std::shared_ptr<block_state_impl> impl;
