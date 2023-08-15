@@ -146,7 +146,12 @@ packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new(packed_tran
 }
 
 packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex(const char *raw_packed_tx, size_t raw_packed_tx_size) {
-    return new packed_transaction_proxy(raw_packed_tx, raw_packed_tx_size);
+    try {
+        auto trx = fc::raw::unpack<packed_transaction>(raw_packed_tx, raw_packed_tx_size);
+        auto ptr = new packed_transaction_ptr(std::make_shared<packed_transaction>(std::move(trx)));
+        return new packed_transaction_proxy(ptr, true);
+    } CATCH_AND_LOG_EXCEPTION()
+    return nullptr;
 }
 
 bool ipyeos_proxy::packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr) {
