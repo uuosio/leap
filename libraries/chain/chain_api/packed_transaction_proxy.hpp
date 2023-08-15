@@ -22,11 +22,13 @@ using namespace eosio::chain;
 class packed_transaction_proxy {
 public:
     packed_transaction_proxy(packed_transaction_ptr *sbp, bool attach);
+    packed_transaction_proxy(const char *packed_tx, size_t packed_tx_size);
 
     virtual ~packed_transaction_proxy();
 
     signed_transaction_ptr *get_signed_transaction();
     vector<char> pack();
+    string to_json();
 
 private:
     std::shared_ptr<packed_transaction_impl> impl;

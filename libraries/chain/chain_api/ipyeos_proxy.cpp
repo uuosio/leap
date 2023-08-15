@@ -145,6 +145,10 @@ packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new(packed_tran
     return new packed_transaction_proxy(_packed_transaction_ptr, attach);
 }
 
+packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex(const char *raw_packed_tx, size_t raw_packed_tx_size) {
+    return new packed_transaction_proxy(raw_packed_tx, raw_packed_tx_size);
+}
+
 bool ipyeos_proxy::packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr) {
     if (packed_transaction_proxy_ptr) {
         delete packed_transaction_proxy_ptr;

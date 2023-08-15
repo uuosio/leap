@@ -106,6 +106,7 @@ class ipyeos_proxy {
         virtual bool transaction_proxy_free(void *transaction_proxy_ptr);
 
         virtual packed_transaction_proxy *packed_transaction_proxy_new(packed_transaction_ptr *_packed_transaction_ptr, bool attach);
+        virtual packed_transaction_proxy *packed_transaction_proxy_new_ex(const char *raw_packed_tx, size_t raw_packed_tx_size);
         virtual bool packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr);
 
         virtual vm_api_proxy *get_vm_api_proxy();
