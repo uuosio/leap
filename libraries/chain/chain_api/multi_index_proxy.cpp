@@ -1,3 +1,5 @@
+#include <variant>
+
 #include "multi_index_proxy.hpp"
 
 #include <exception>
