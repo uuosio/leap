@@ -91,7 +91,7 @@ void index_event_listener::on_event_begin(const char* function, const std::type_
         return;
     }
 
-    FC_ASSERT(start_cpu_billing_time_us == 0, "start_cpu_billing_time_us should be 0");
+    FC_ASSERT(start_cpu_billing_time_us == 0, "start_cpu_billing_time_us must be 0");
 
     tx_context.pause_billing_timer();
     //DONOT move the following line of code above tx_context.pause_billing_timer(), otherwise,

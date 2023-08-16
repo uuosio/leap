@@ -19,7 +19,10 @@ using namespace eosio::testing;
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 
-#include <key_value_data_index.hpp>
+#include <eosio/chain/transaction_context.hpp>
+
+using namespace boost::multi_index;
+
 
 struct base_reflect : fc::reflect_init {
    int bv = 0;
@@ -1351,25 +1354,6 @@ BOOST_AUTO_TEST_CASE(test_unpack_tuple) {
    }
 }
 
-BOOST_AUTO_TEST_CASE(key_value_data_index_test) {
-   key_value_data_index idx;
-   idx.emplace(key_value_data{1, {1, 2, 3}, {1, 2, 3}});
-   idx.emplace(key_value_data{1, {2, 3, 4}, {1, 2, 3}});
-   idx.find(1);
-   idx.find(std::make_tuple(1, std::vector<uint64_t>{1, 2, 3}));
-   auto itr = idx.lower_bound(1);
-   FC_ASSERT(itr != idx.end(), "bad value");
-   ilog("++++${n}", ("n", itr->first_key));
-   
-   itr = idx.lower_bound(std::make_tuple(1, std::vector<uint64_t>{2, 0, 5}));
-   FC_ASSERT(itr != idx.end(), "bad iterator");
-   FC_ASSERT(itr->first_key == 1, "bad value");
-   FC_ASSERT(!!(itr->other_key == std::vector<uint64_t>{2, 3, 4}), "bad value");
-
-   ilog("++++${n}", ("n", itr->first_key));
-   FC_ASSERT(idx.size() == 2, "bad size");
-}
-
 BOOST_AUTO_TEST_CASE(private_key_test) {
    fc::crypto::private_key pk = fc::crypto::private_key::generate();
    auto v = fc::raw::pack(pk);
@@ -1397,6 +1381,51 @@ BOOST_AUTO_TEST_CASE(timer_test) {
    timer.async_wait(&timerExpired);
    std::cout<<"start"<<std::endl;
    io.run();
+}
+
+BOOST_AUTO_TEST_CASE(run_once_test) {
+    boost::asio::io_service io_service;
+    boost::asio::io_service::work work(io_service);
+
+    // Call run_one when there are no tasks.
+   //  if (io_service.run_one() == 0) {
+   //      std::cout << "No tasks were executed." << std::endl;
+   //  }
+
+   io_service.poll();
+
+    // Post a task.
+    io_service.post([]() {
+        std::cout << "Task executed." << std::endl;
+    });
+
+   io_service.poll();
+
+    // Call run_one again.
+   //  if (io_service.run_one() > 0) {
+   //      std::cout << "A task was executed." << std::endl;
+   //  } else {
+   //       std::cout << "No tasks were executed." << std::endl;
+   //  }
+
+    while (io_service.run_one() == 0) {
+    }
+        std::cout << "A task was executed." << std::endl;
+
+}
+
+BOOST_AUTO_TEST_CASE(platfrom_timer_test) {
+   platform_timer timer;
+   transaction_checktime_timer trx_timer(timer);
+   auto now = fc::time_point::now();
+   auto deadline = now + fc::milliseconds(1000);
+   auto start = now;
+   for (int i=0; i<1000; i++) {
+      trx_timer.start(deadline);
+      trx_timer.stop();
+      trx_timer.stop();
+   }
+   elog("+++++++++++cost: ${cost}", ("cost", fc::time_point::now() - start));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

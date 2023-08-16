@@ -1,8 +1,8 @@
 #include <variant>
+#include <stdexcept>
+#include <exception>
 
 #include "multi_index_proxy.hpp"
-
-#include <exception>
 
 struct secondary_double {
     uint64_t first;
