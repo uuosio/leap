@@ -32,6 +32,14 @@ public:
         return fc::raw::pack(**_sbp);
     }
 
+    size_t transactions_size() {
+        return (*_sbp)->transactions.size();
+    }
+
+    signed_block_ptr *get() {
+        return _sbp;
+    }
+
 private:
     signed_block_ptr *_sbp;
 };
@@ -57,4 +65,12 @@ uint32_t signed_block_proxy::block_num() {
 
 vector<char> signed_block_proxy::pack() {
     return impl->pack();
+}
+
+size_t signed_block_proxy::transactions_size() {
+    return impl->transactions_size();
+}
+
+signed_block_ptr *signed_block_proxy::get() {
+    return impl->get();
 }

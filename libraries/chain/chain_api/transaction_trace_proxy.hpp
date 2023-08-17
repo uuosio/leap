@@ -44,6 +44,8 @@ public:
     virtual int get_action_traces_size();
     virtual action_trace_proxy *get_action_trace(int index);
     virtual bool free_action_trace(action_trace_proxy *_action_trace_proxy);
+    virtual vector<char> pack();
+    virtual string to_json();
 
 private:
     std::shared_ptr<transaction_trace_impl> impl;

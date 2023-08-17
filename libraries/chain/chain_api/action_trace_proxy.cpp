@@ -108,6 +108,10 @@ public:
         return fc::json::to_string(_action_trace.return_value, fc::time_point::maximum());
     }
 
+    vector<char> pack() {
+        return fc::raw::pack(_action_trace);
+    }
+
 private:
     transaction_trace_ptr _transaction_trace_ptr;
     action_trace& _action_trace;
@@ -203,4 +207,8 @@ uint64_t action_trace_proxy::error_code() {
 
 string action_trace_proxy::return_value() {
     return impl->return_value();
+}
+
+vector<char> action_trace_proxy::pack() {
+    return impl->pack();
 }

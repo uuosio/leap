@@ -154,6 +154,25 @@ packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex(const ch
     return nullptr;
 }
 
+packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex_ex(signed_block_proxy *ptr, int index) {
+    if (ptr == nullptr) {
+        return nullptr;
+    }
+
+    auto _ptr = ptr->get();
+    if (index < 0 || index >= (*_ptr)->transactions.size()) {
+        return nullptr;
+    }
+
+    auto& t = (*_ptr)->transactions[index];
+    if (std::holds_alternative<packed_transaction>(t.trx)) {
+        return new packed_transaction_proxy(*_ptr, index);
+    } else {
+        return nullptr;
+    }
+    return nullptr;
+}
+
 bool ipyeos_proxy::packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr) {
     if (packed_transaction_proxy_ptr) {
         delete packed_transaction_proxy_ptr;
@@ -282,6 +301,15 @@ bool ipyeos_proxy::block_state_proxy_free(void *block_state_proxy_ptr) {
 
 transaction_trace_proxy *ipyeos_proxy::transaction_trace_proxy_new(transaction_trace_ptr *_transaction_trace_ptr, bool attach) {
     return new transaction_trace_proxy(_transaction_trace_ptr, attach);
+}
+
+transaction_trace_proxy *ipyeos_proxy::transaction_trace_proxy_new_ex(const char *raw_packed_transaction_trace, size_t raw_packed_transaction_trace_size) {
+    try {
+        auto ptt = fc::raw::unpack<transaction_trace>(raw_packed_transaction_trace, raw_packed_transaction_trace_size);
+        auto ptr = new transaction_trace_ptr(std::make_shared<transaction_trace>(std::move(ptt)));
+        return new transaction_trace_proxy(ptr, true);
+    } CATCH_AND_LOG_EXCEPTION()
+    return nullptr;
 }
 
 bool ipyeos_proxy::transaction_trace_proxy_free(transaction_trace_proxy *transaction_trace_proxy_ptr) {

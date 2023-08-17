@@ -111,6 +111,14 @@ public:
         return (*_transaction_trace)->action_traces.size();
     }
 
+    vector<char> pack() {
+        return fc::raw::pack(**_transaction_trace);
+    }
+
+    string to_json() {
+        return fc::json::to_string(**_transaction_trace, fc::time_point::maximum());
+    }
+
 private:
     transaction_trace_ptr *_transaction_trace;
 };
@@ -180,6 +188,9 @@ int transaction_trace_proxy::get_action_traces_size() {
 }
 
 action_trace_proxy *transaction_trace_proxy::get_action_trace(int index) {
+    if (index >= impl->get_action_traces_size()) {
+        return nullptr;
+    }
     return new action_trace_proxy(impl->get_transaction_trace_ptr(), index);
 }
 
@@ -189,4 +200,12 @@ bool transaction_trace_proxy::free_action_trace(action_trace_proxy *_action_trac
     }
     delete _action_trace_proxy;
     return true;
+}
+
+vector<char> transaction_trace_proxy::pack() {
+    return impl->pack();
+}
+
+string transaction_trace_proxy::to_json() {
+    return impl->to_json();
 }

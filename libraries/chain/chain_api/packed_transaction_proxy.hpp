@@ -12,8 +12,10 @@ namespace eosio {
     namespace chain {
         struct packed_transaction;
         struct signed_transaction;
+        struct signed_block;
         using signed_transaction_ptr = std::shared_ptr<signed_transaction>;
         using packed_transaction_ptr = std::shared_ptr<const packed_transaction>;
+        using signed_block_ptr = std::shared_ptr<signed_block>;
     }
 }
 
@@ -22,6 +24,7 @@ using namespace eosio::chain;
 class packed_transaction_proxy {
 public:
     packed_transaction_proxy(packed_transaction_ptr *sbp, bool attach);
+    packed_transaction_proxy(signed_block_ptr& bsp, int index);
     packed_transaction_proxy(const char *packed_tx, size_t packed_tx_size);
 
     virtual ~packed_transaction_proxy();

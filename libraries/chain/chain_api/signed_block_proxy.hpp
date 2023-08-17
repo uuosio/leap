@@ -26,6 +26,8 @@ public:
 
     virtual uint32_t block_num();
     virtual vector<char> pack();
+    virtual size_t transactions_size();
+    signed_block_ptr *get();
 
 private:
     std::shared_ptr<signed_block_impl> impl;

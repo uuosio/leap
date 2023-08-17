@@ -18,42 +18,67 @@ using namespace eosio::chain;
 
 class packed_transaction_impl {
 public:
-    packed_transaction_impl(packed_transaction_ptr *sbp, bool attach) {
-        if (attach)
-            _sbp = sbp;
-        else
-            _sbp = new packed_transaction_ptr(*sbp);
+    packed_transaction_impl(packed_transaction_ptr *ptpp) {
+        _ptpp = ptpp;
+        _ptp = _ptpp->get();
+    }
+
+    packed_transaction_impl(packed_transaction_ptr& ptp) {
+        _ptpp = new packed_transaction_ptr(ptp);
+        _ptp = _ptpp->get();
+    }
+
+    packed_transaction_impl(signed_block_ptr& sbp, int index) {
+        _sbp = sbp;
+        auto& t = sbp->transactions[index];
+        if (std::holds_alternative<packed_transaction>(t.trx)) {
+            _ptp = &std::get<packed_transaction>(t.trx);
+        } else {
+            FC_ASSERT(false, "transaction is not packed_transaction");
+        }
+        _ptpp = nullptr;
     }
 
     packed_transaction_impl(const char *packed_tx, size_t packed_tx_size) {
         auto trx = fc::raw::unpack<packed_transaction>(packed_tx, packed_tx_size);
-        _sbp = new packed_transaction_ptr(std::make_shared<packed_transaction>(std::move(trx)));
+        _ptpp = new packed_transaction_ptr(std::make_shared<packed_transaction>(std::move(trx)));
     }
 
     ~packed_transaction_impl() {
-        delete _sbp;
+        if (_ptpp) {
+            delete _ptpp;
+        }
     }
 
     signed_transaction_ptr *get_signed_transaction() {
-        auto tx = (*_sbp)->get_signed_transaction();
+        auto tx = _ptp->get_signed_transaction();
         return new signed_transaction_ptr(std::make_shared<signed_transaction>(tx));
     }
 
     vector<char> pack() {
-        return fc::raw::pack(**_sbp);
+        return fc::raw::pack(*_ptp);
     }
 
     string to_json() {
-        return fc::json::to_string(**_sbp, fc::time_point::maximum());
+        return fc::json::to_string(*_ptp, fc::time_point::maximum());
     }
 
 private:
-    packed_transaction_ptr *_sbp;
+    packed_transaction_ptr *_ptpp;
+    const packed_transaction *_ptp;
+    signed_block_ptr _sbp;
 };
 
-packed_transaction_proxy::packed_transaction_proxy(packed_transaction_ptr *bsp, bool attach): impl(std::make_shared<packed_transaction_impl>(bsp, attach)) 
-{
+packed_transaction_proxy::packed_transaction_proxy(packed_transaction_ptr *bsp, bool attach) {
+    if (attach) {
+        impl = std::make_shared<packed_transaction_impl>(bsp);
+    } else {
+        impl = std::make_shared<packed_transaction_impl>(*bsp);
+    }
+}
 
+packed_transaction_proxy::packed_transaction_proxy(signed_block_ptr& bsp, int index) {
+    impl = std::make_shared<packed_transaction_impl>(bsp, index);
 }
 
 packed_transaction_proxy::packed_transaction_proxy(const char *packed_tx, size_t packed_tx_size): impl(std::make_shared<packed_transaction_impl>(packed_tx, packed_tx_size)) {

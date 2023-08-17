@@ -49,6 +49,7 @@ public:
     virtual string except_();
     virtual uint64_t error_code();
     virtual string return_value();
+    virtual vector<char> pack();
 
 private:
     std::shared_ptr<action_trace_impl> impl;
