@@ -23,9 +23,9 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-      - name: Install llvm@11
+      - name: Install llvm@12
         run: |
-          brew install llvm@11
+          brew install llvm@12
       - name: Install boost
         run: |
           curl -L https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.tar.bz2 | tar jx
