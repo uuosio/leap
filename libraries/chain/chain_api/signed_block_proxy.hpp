@@ -17,6 +17,8 @@ namespace eosio {
 
 using namespace eosio::chain;
 
+class packed_transaction_proxy;
+
 class signed_block_proxy {
 public:
     signed_block_proxy(const signed_block_ptr& sbp);
@@ -27,6 +29,11 @@ public:
     virtual uint32_t block_num();
     virtual vector<char> pack();
     virtual size_t transactions_size();
+
+    virtual vector<char> get_transaction_id(int index);
+    virtual bool is_packed_transaction(int index);
+    virtual packed_transaction_proxy *get_packed_transaction(int index);
+
     signed_block_ptr *get();
 
 private:

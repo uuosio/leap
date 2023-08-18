@@ -154,25 +154,6 @@ packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex(const ch
     return nullptr;
 }
 
-packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex_ex(signed_block_proxy *ptr, int index) {
-    if (ptr == nullptr) {
-        return nullptr;
-    }
-
-    auto _ptr = ptr->get();
-    if (index < 0 || index >= (*_ptr)->transactions.size()) {
-        return nullptr;
-    }
-
-    auto& t = (*_ptr)->transactions[index];
-    if (std::holds_alternative<packed_transaction>(t.trx)) {
-        return new packed_transaction_proxy(*_ptr, index);
-    } else {
-        return nullptr;
-    }
-    return nullptr;
-}
-
 bool ipyeos_proxy::packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr) {
     if (packed_transaction_proxy_ptr) {
         delete packed_transaction_proxy_ptr;
