@@ -91,15 +91,19 @@ void index_event_listener::on_event_begin(const char* function, const std::type_
         return;
     }
 
-    FC_ASSERT(start_cpu_billing_time_us == 0, "start_cpu_billing_time_us must be 0");
+    // FC_ASSERT(start_cpu_billing_time_us == 0, "start_cpu_billing_time_us must be 0");
 
-    tx_context.pause_billing_timer();
+    paused = tx_context.pause_billing_timer();
     //DONOT move the following line of code above tx_context.pause_billing_timer(), otherwise,
     //paused >= adjusted_cpu_time_us assertion in transaction_context::resume_billing_timer may fail
     start_cpu_billing_time_us = fc::time_point::now().time_since_epoch().count();
 }
 
 void index_event_listener::on_event_end(const char* function, const std::type_info& value_type_info) {
+    if (!paused) {
+        return;
+    }
+
     if (tx_context.explicit_billed_cpu_time) {
         return;
     }

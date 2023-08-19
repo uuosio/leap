@@ -76,8 +76,8 @@ namespace eosio { namespace chain {
             return enc.result();
          }
 
-         void pause_billing_timer();
-         void resume_billing_timer(fc::microseconds adjusted_cpu_time_us = fc::microseconds(0));
+         bool pause_billing_timer();
+         bool resume_billing_timer(fc::microseconds adjusted_cpu_time_us = fc::microseconds(0));
 
          uint32_t update_billed_cpu_time( fc::time_point now );
 

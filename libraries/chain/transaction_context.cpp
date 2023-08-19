@@ -503,17 +503,18 @@ namespace eosio { namespace chain {
       EOS_ASSERT( false,  transaction_exception, "unexpected deadline exception code ${code}", ("code", deadline_exception_code) );
    }
 
-   void transaction_context::pause_billing_timer() {
-      if( explicit_billed_cpu_time || pseudo_start == fc::time_point() ) return; // either irrelevant or already paused
+   bool transaction_context::pause_billing_timer() {
+      if( explicit_billed_cpu_time || pseudo_start == fc::time_point() ) return false; // either irrelevant or already paused
 
       paused_time = fc::time_point::now();
       billed_time = paused_time - pseudo_start;
       pseudo_start = fc::time_point();
       transaction_timer.stop();
+      return true;
    }
 
-   void transaction_context::resume_billing_timer(fc::microseconds adjusted_cpu_time_us) {
-      if( explicit_billed_cpu_time || pseudo_start != fc::time_point() ) return; // either irrelevant or already running
+   bool transaction_context::resume_billing_timer(fc::microseconds adjusted_cpu_time_us) {
+      if( explicit_billed_cpu_time || pseudo_start != fc::time_point() ) return false; // either irrelevant or already running
 
       auto now = fc::time_point::now();
       auto paused = now - paused_time;
@@ -531,6 +532,7 @@ namespace eosio { namespace chain {
       }
 
       transaction_timer.start(_deadline);
+      return true;
    }
 
    void transaction_context::validate_cpu_usage_to_bill( int64_t billed_us, int64_t account_cpu_limit, bool check_minimum, int64_t subjective_billed_us )const {
