@@ -450,54 +450,50 @@ public:
         return "";
     }
 
-    string fetch_block_by_number(uint32_t block_num) {
+    signed_block_proxy *fetch_block_by_number(uint32_t block_num) {
         try {
             auto block_ptr = c->fetch_block_by_number(block_num);
             if (!block_ptr) {
-                return "";
+                return nullptr;
             }
-            auto _raw_block = fc::raw::pack<eosio::chain::signed_block>(*block_ptr);
-            return string(_raw_block.data(), _raw_block.size());
+            return new signed_block_proxy(block_ptr);
         } CATCH_AND_LOG_EXCEPTION()
-        return "";
+        return nullptr;
     }
 
-    string fetch_block_by_id(string& params) {
+    signed_block_proxy *fetch_block_by_id(string& params) {
         try {
             auto block_id = fc::variant(params).as<block_id_type>();
             auto block_ptr = c->fetch_block_by_id(block_id);
             if (!block_ptr) {
-                return "";
+                return nullptr;
             }
-            auto _raw_block = fc::raw::pack<eosio::chain::signed_block>(*block_ptr);
-            return string(_raw_block.data(), _raw_block.size());
+            return new signed_block_proxy(block_ptr);
         } CATCH_AND_LOG_EXCEPTION()
-        return "";
+        return nullptr;
     }
 
-    string fetch_block_state_by_number(uint32_t block_num) {
+    block_state_proxy *fetch_block_state_by_number(uint32_t block_num) {
         try {
             auto block_ptr = c->fetch_block_state_by_number(block_num);
             if (!block_ptr) {
-                return "";
+                return nullptr;
             }
-            auto _raw_block_state = fc::raw::pack<eosio::chain::block_state>(*block_ptr);
-            return string(_raw_block_state.data(), _raw_block_state.size());
+            return new block_state_proxy(block_ptr);
         } CATCH_AND_LOG_EXCEPTION()
-        return "";
+        return nullptr;
     }
 
-    string fetch_block_state_by_id(string& params) {
+    block_state_proxy *fetch_block_state_by_id(string& params) {
         try {
             auto block_id = fc::json::from_string(params).as<block_id_type>();
             auto block_ptr = c->fetch_block_state_by_id(block_id);
             if (!block_ptr) {
-                return "";
+                return nullptr;
             }
-            auto _raw_block_state = fc::raw::pack<eosio::chain::block_state>(*block_ptr);
-            return string(_raw_block_state.data(), _raw_block_state.size());
+            return new block_state_proxy(block_ptr);
         } CATCH_AND_LOG_EXCEPTION()
-        return "";
+        return nullptr;
     }
 
     string calculate_integrity_hash() {
@@ -807,11 +803,8 @@ public:
         return false;
     }
 
-    bool push_block(const char *raw_block, size_t raw_block_size, string *block_statistics) {
+    bool push_block(signed_block_ptr block, string *block_statistics) {
         try {
-            auto block = std::make_shared<signed_block>();
-            fc::raw::unpack(raw_block, raw_block_size, *block);
-
             const auto& id = block->calculate_id();
             auto bsf = c->create_block_state_future(id, block);
             controller::block_report br;
@@ -847,6 +840,19 @@ public:
             return true;
         } CATCH_AND_LOG_EXCEPTION();
         return false;
+    }
+
+    bool push_raw_block(const char *raw_block, size_t raw_block_size, string *block_statistics) {
+        try {
+            auto block = std::make_shared<signed_block>();
+            fc::raw::unpack(raw_block, raw_block_size, *block);
+            return push_block(block, block_statistics);
+        } CATCH_AND_LOG_EXCEPTION();
+        return false;
+    }
+    
+    bool push_block(signed_block_proxy *_block, string *block_statistics) {
+        return push_block(_block->get(), block_statistics);
     }
 
     void load_abi(string& account) {
@@ -1275,19 +1281,19 @@ string chain_proxy::last_irreversible_block_id() {
     return impl->last_irreversible_block_id();
 }
 
-string chain_proxy::fetch_block_by_number(uint32_t block_num) {
+signed_block_proxy *chain_proxy::fetch_block_by_number(uint32_t block_num) {
     return impl->fetch_block_by_number(block_num);
 }
 
-string chain_proxy::fetch_block_by_id(string& params) {
+signed_block_proxy *chain_proxy::fetch_block_by_id(string& params) {
     return impl->fetch_block_by_id(params);
 }
 
-string chain_proxy::fetch_block_state_by_number(uint32_t block_num) {
+block_state_proxy *chain_proxy::fetch_block_state_by_number(uint32_t block_num) {
     return impl->fetch_block_state_by_number(block_num);
 }
 
-string chain_proxy::fetch_block_state_by_id(string& params) {
+block_state_proxy *chain_proxy::fetch_block_state_by_id(string& params) {
     return impl->fetch_block_state_by_id(params);
 }
 
@@ -1464,8 +1470,12 @@ bool chain_proxy::push_block_from_block_log(void *block_log_ptr, uint32_t block_
     return impl->push_block_from_block_log(block_log_ptr, block_num);
 }
 
-bool chain_proxy::push_block(const char *raw_block, size_t raw_block_size, string *block_statistics) {
-    return impl->push_block(raw_block, raw_block_size, block_statistics);
+bool chain_proxy::push_raw_block(const char *raw_block, size_t raw_block_size, string *block_statistics) {
+    return impl->push_raw_block(raw_block, raw_block_size, block_statistics);
+}
+
+bool chain_proxy::push_block(signed_block_proxy *block, string *block_statistics) {
+    return impl->push_block(block, block_statistics);
 }
 
 void chain_proxy::load_abi(string& account) {

@@ -14,6 +14,7 @@ namespace eosio {
 using namespace eosio::chain;
 
 class ipyeos_proxy;
+class signed_block_proxy;
 
 class block_log_proxy {
 public:
@@ -21,7 +22,7 @@ public:
     ~block_log_proxy();
 
     virtual void *get_block_log_ptr();
-    virtual signed_block_ptr *read_block_by_num(uint32_t block_num);
+    virtual signed_block_proxy *read_block_by_num(uint32_t block_num);
     virtual string read_block_header_by_num(uint32_t block_num);
     virtual string read_block_id_by_num(uint32_t block_num);
     virtual string read_block_by_id(const string& id);

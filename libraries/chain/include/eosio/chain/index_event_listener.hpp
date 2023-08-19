@@ -45,5 +45,6 @@ namespace eosio { namespace chain {
         int64_t start_time_diff_us = 0;
         int64_t total_time_diff_us = 0;
         int64_t total_database_cpu_usage_us = 0;
+        bool paused = false;
     };
 }}

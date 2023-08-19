@@ -42,6 +42,8 @@ struct native_contract {
 };
 
 class chain_proxy_impl;
+class signed_block_proxy;
+class block_state_proxy;
 
 class chain_proxy {
     public:
@@ -108,10 +110,10 @@ class chain_proxy {
         virtual string proposed_producers();
         virtual uint32_t last_irreversible_block_num();
         virtual string last_irreversible_block_id();
-        virtual string fetch_block_by_number(uint32_t block_num);
-        virtual string fetch_block_by_id(string& params);
-        virtual string fetch_block_state_by_number(uint32_t block_num);
-        virtual string fetch_block_state_by_id(string& params);
+        virtual signed_block_proxy *fetch_block_by_number(uint32_t block_num);
+        virtual signed_block_proxy *fetch_block_by_id(string& params);
+        virtual block_state_proxy *fetch_block_state_by_number(uint32_t block_num);
+        virtual block_state_proxy *fetch_block_state_by_id(string& params);
         virtual string calculate_integrity_hash();
         virtual bool sender_avoids_whitelist_blacklist_enforcement(string& sender);
         virtual bool check_actor_list(string& param);
@@ -150,7 +152,8 @@ class chain_proxy {
         virtual void gen_transaction(bool json, string& _actions, int64_t expiration_sec, string& reference_block_id, string& _chain_id, bool compress, std::string& _private_keys, vector<char>& result);
         virtual bool push_transaction(const char *_packed_tx, size_t _packed_tx_size, int64_t block_deadline_ms, uint32_t billed_cpu_time_us, bool explicit_cpu_bill, uint32_t subjective_cpu_bill_us, bool read_only, string& result);
         virtual bool push_block_from_block_log(void *block_log_ptr, uint32_t block_num);
-        virtual bool push_block(const char *raw_block, size_t raw_block_size, string *block_statistics);
+        virtual bool push_raw_block(const char *raw_block, size_t raw_block_size, string *block_statistics);
+        virtual bool push_block(signed_block_proxy *block, string *block_statistics);
         virtual string get_scheduled_transactions();
         virtual string get_scheduled_transaction(const char *sender_id, size_t sender_id_size, string& sender);
         virtual string push_scheduled_transaction(string& scheduled_tx_id, string& deadline, uint32_t billed_cpu_time_us);

@@ -1,6 +1,7 @@
 #include <fc/io/json.hpp>
 #include <eosio/chain/block_log.hpp>
 
+#include "signed_block_proxy.hpp"
 #include "block_log_proxy.hpp"
 #include "chain_macro.hpp"
 
@@ -16,13 +17,13 @@ void *block_log_proxy::get_block_log_ptr() {
     return _block_log.get();
 }
 
-signed_block_ptr *block_log_proxy::read_block_by_num(uint32_t block_num) {
+signed_block_proxy *block_log_proxy::read_block_by_num(uint32_t block_num) {
     try {
         auto block = _block_log->read_block_by_num(block_num);
         if (!block) {
             return nullptr;
         }
-        auto ret = new signed_block_ptr(block);
+        auto ret = new signed_block_proxy(block);
         return ret;
     } CATCH_AND_LOG_EXCEPTION();
     return nullptr;

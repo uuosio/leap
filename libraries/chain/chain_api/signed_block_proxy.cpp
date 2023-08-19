@@ -78,8 +78,8 @@ public:
         return nullptr;
     }
 
-    signed_block_ptr *get() {
-        return _sbp;
+    signed_block_ptr get() {
+        return *_sbp;
     }
 
 private:
@@ -125,6 +125,6 @@ packed_transaction_proxy *signed_block_proxy::get_packed_transaction(int index) 
     return impl->get_packed_transaction(index);
 }
 
-signed_block_ptr *signed_block_proxy::get() {
+signed_block_ptr signed_block_proxy::get() {
     return impl->get();
 }

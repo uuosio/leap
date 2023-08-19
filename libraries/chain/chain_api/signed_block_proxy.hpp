@@ -34,7 +34,7 @@ public:
     virtual bool is_packed_transaction(int index);
     virtual packed_transaction_proxy *get_packed_transaction(int index);
 
-    signed_block_ptr *get();
+    signed_block_ptr get();
 
 private:
     std::shared_ptr<signed_block_impl> impl;
