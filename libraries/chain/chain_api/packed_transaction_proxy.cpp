@@ -11,6 +11,7 @@
 #include <fc/variant.hpp>
 
 #include "packed_transaction_proxy.hpp"
+#include "signed_transaction_proxy.hpp"
 
 using namespace std;
 using namespace fc;
@@ -25,6 +26,15 @@ public:
 
     packed_transaction_impl(packed_transaction_ptr& ptp) {
         _ptpp = new packed_transaction_ptr(ptp);
+        _ptp = _ptpp->get();
+    }
+
+    packed_transaction_impl(signed_transaction_proxy *stp, bool compressed) {
+        if (compressed) {
+            _ptpp = new packed_transaction_ptr(std::make_shared<packed_transaction>(*stp->get_transaction(), packed_transaction::compression_type::zlib));
+        } else {
+            _ptpp = new packed_transaction_ptr(std::make_shared<packed_transaction>(*stp->get_transaction(), packed_transaction::compression_type::none));
+        }
         _ptp = _ptpp->get();
     }
 
@@ -50,9 +60,10 @@ public:
         }
     }
 
-    signed_transaction_ptr *get_signed_transaction() {
+    signed_transaction_proxy *get_signed_transaction() {
         auto tx = _ptp->get_signed_transaction();
-        return new signed_transaction_ptr(std::make_shared<signed_transaction>(tx));
+        auto stp = std::make_shared<signed_transaction>(tx);
+        return new signed_transaction_proxy(stp);
     }
 
     vector<char> pack() {
@@ -81,6 +92,10 @@ packed_transaction_proxy::packed_transaction_proxy(signed_block_ptr& bsp, int in
     impl = std::make_shared<packed_transaction_impl>(bsp, index);
 }
 
+packed_transaction_proxy::packed_transaction_proxy(signed_transaction_proxy *stp, bool compressed) {
+    impl = std::make_shared<packed_transaction_impl>(stp, compressed);
+}
+
 packed_transaction_proxy::packed_transaction_proxy(const char *packed_tx, size_t packed_tx_size): impl(std::make_shared<packed_transaction_impl>(packed_tx, packed_tx_size)) {
 }
 
@@ -88,7 +103,7 @@ packed_transaction_proxy::~packed_transaction_proxy() {
 
 }
 
-signed_transaction_ptr *packed_transaction_proxy::get_signed_transaction() {
+signed_transaction_proxy *packed_transaction_proxy::get_signed_transaction() {
     return impl->get_signed_transaction();
 }
 

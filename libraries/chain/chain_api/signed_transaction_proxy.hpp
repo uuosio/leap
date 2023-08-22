@@ -24,12 +24,13 @@ public:
         uint32_t delay_sec            //fc::unsigned_int
     );
     signed_transaction_proxy(signed_transaction_ptr& transaction);
+    std::shared_ptr<signed_transaction> get_transaction() { return trx; }
     virtual ~signed_transaction_proxy();
     virtual void id(vector<char>& result);
     virtual void add_action(uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths);
     virtual bool sign(const char *private_key, size_t size, const char *chain_id, size_t chain_id_size);
-    virtual void pack(bool compress, vector<char>& packed_transaction);
-    virtual bool unpack(const char *packed_transaction, size_t size, int result_type, string& result);
+    virtual void pack(bool compress, int pack_type, vector<char>& packed_transaction);
+    virtual bool to_json(int result_type, bool compressed, string& result);
 private:
     std::shared_ptr<signed_transaction> trx;
 };

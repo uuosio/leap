@@ -107,6 +107,8 @@ class ipyeos_proxy {
 
         virtual packed_transaction_proxy *packed_transaction_proxy_new(packed_transaction_ptr *_packed_transaction_ptr, bool attach);
         virtual packed_transaction_proxy *packed_transaction_proxy_new_ex(const char *raw_packed_tx, size_t raw_packed_tx_size);
+        virtual packed_transaction_proxy *packed_transaction_proxy_new_ex_ex(signed_transaction_proxy *signed_transaction_proxy_ptr, bool compressed);
+
         virtual bool packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr);
 
         virtual vm_api_proxy *get_vm_api_proxy();
@@ -128,6 +130,7 @@ class ipyeos_proxy {
         virtual bool transaction_trace_proxy_free(transaction_trace_proxy *transaction_trace_proxy_ptr);
 
         virtual signed_block_proxy *signed_block_proxy_new(signed_block_ptr *_signed_block_ptr);
+        virtual signed_block_proxy *signed_block_proxy_new_ex(const char *raw_signed_block, size_t raw_signed_block_size);
         virtual signed_block_proxy *signed_block_proxy_attach(signed_block_ptr *_signed_block_ptr);
 
         virtual bool signed_block_proxy_free(void *signed_block_proxy_ptr);

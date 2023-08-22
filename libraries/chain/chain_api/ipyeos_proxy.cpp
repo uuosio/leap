@@ -154,6 +154,10 @@ packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex(const ch
     return nullptr;
 }
 
+packed_transaction_proxy *ipyeos_proxy::packed_transaction_proxy_new_ex_ex(signed_transaction_proxy *signed_transaction_proxy_ptr, bool compressed) {
+    return new packed_transaction_proxy(signed_transaction_proxy_ptr, compressed);
+}
+
 bool ipyeos_proxy::packed_transaction_proxy_free(packed_transaction_proxy *packed_transaction_proxy_ptr) {
     if (packed_transaction_proxy_ptr) {
         delete packed_transaction_proxy_ptr;
@@ -303,6 +307,15 @@ bool ipyeos_proxy::transaction_trace_proxy_free(transaction_trace_proxy *transac
 
 signed_block_proxy *ipyeos_proxy::signed_block_proxy_new(signed_block_ptr *_signed_block_ptr) {
     return new signed_block_proxy(*_signed_block_ptr);
+}
+
+signed_block_proxy *ipyeos_proxy::signed_block_proxy_new_ex(const char *raw_signed_block, size_t raw_signed_block_size) {
+    try {
+        auto psb = fc::raw::unpack<signed_block>(raw_signed_block, raw_signed_block_size);
+        auto ptr = new signed_block_ptr(std::make_shared<signed_block>(std::move(psb)));
+        return new signed_block_proxy(ptr);
+    } CATCH_AND_LOG_EXCEPTION()
+    return nullptr;
 }
 
 signed_block_proxy *ipyeos_proxy::signed_block_proxy_attach(signed_block_ptr *_signed_block_ptr) {

@@ -33,6 +33,7 @@ public:
     virtual vector<char> get_transaction_id(int index);
     virtual bool is_packed_transaction(int index);
     virtual packed_transaction_proxy *get_packed_transaction(int index);
+    virtual string to_json();
 
     signed_block_ptr get();
 

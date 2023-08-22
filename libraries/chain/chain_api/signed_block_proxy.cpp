@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <eosio/chain/block.hpp>
+#include <fc/io/json.hpp>
 
 #include "signed_block_proxy.hpp"
 #include "packed_transaction_proxy.hpp"
@@ -77,6 +78,10 @@ public:
         }
         return nullptr;
     }
+    
+    string to_json() {
+        return fc::json::to_string(**_sbp, fc::time_point::maximum());
+    }
 
     signed_block_ptr get() {
         return *_sbp;
@@ -127,4 +132,8 @@ packed_transaction_proxy *signed_block_proxy::get_packed_transaction(int index) 
 
 signed_block_ptr signed_block_proxy::get() {
     return impl->get();
+}
+
+string signed_block_proxy::to_json() {
+    return impl->to_json();
 }

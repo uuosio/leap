@@ -21,15 +21,18 @@ namespace eosio {
 
 using namespace eosio::chain;
 
+class signed_transaction_proxy;
+
 class packed_transaction_proxy {
 public:
     packed_transaction_proxy(packed_transaction_ptr *sbp, bool attach);
+    packed_transaction_proxy(signed_transaction_proxy *stp, bool compressed);
     packed_transaction_proxy(signed_block_ptr& bsp, int index);
     packed_transaction_proxy(const char *packed_tx, size_t packed_tx_size);
 
     virtual ~packed_transaction_proxy();
 
-    virtual signed_transaction_ptr *get_signed_transaction();
+    virtual signed_transaction_proxy *get_signed_transaction();
     virtual vector<char> pack();
     virtual string to_json();
 

@@ -48,26 +48,26 @@ string block_log_proxy::read_block_id_by_num(uint32_t block_num) {
     return "";
 }
 
-string block_log_proxy::read_block_by_id(const string& id) {
+signed_block_proxy *block_log_proxy::read_block_by_id(const string& id) {
     try {
         auto block = _block_log->read_block_by_id(fc::variant(id).as<block_id_type>());
         if (!block) {
-            return "";
+            return nullptr;
         }
-        return fc::json::to_string(block, fc::time_point::maximum());
+        return new signed_block_proxy(block);
     } CATCH_AND_LOG_EXCEPTION();
-    return "";
+    return nullptr;
 }
 
-string block_log_proxy::head() {
+signed_block_proxy *block_log_proxy::head() {
     try {
         auto block = _block_log->head();
         if (!block) {
-            return "";
+            return nullptr;
         }
-        return fc::json::to_string(block, fc::time_point::maximum());
+        return new signed_block_proxy(block);
     } CATCH_AND_LOG_EXCEPTION();
-    return "";
+    return nullptr;
 }
 
 uint32_t block_log_proxy::head_block_num() {

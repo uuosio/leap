@@ -60,7 +60,14 @@ bool signed_transaction_proxy::sign(const char *private_key, size_t size, const 
     return false;
 }
 
-void signed_transaction_proxy::pack(bool compress, vector<char>& result) {
+void signed_transaction_proxy::pack(bool compress, int pack_type, vector<char>& result) {
+    FC_ASSERT(pack_type == 0 || pack_type == 1, "unknown pack type");
+
+    if (pack_type == 0) { //signed_transaction
+        result = fc::raw::pack(*trx);
+        return;
+    }
+
     packed_transaction::compression_type type;
     if (compress) {
         type = packed_transaction::compression_type::zlib;
@@ -71,13 +78,18 @@ void signed_transaction_proxy::pack(bool compress, vector<char>& result) {
     result = fc::raw::pack(packed_trx);
 }
 
-bool signed_transaction_proxy::unpack(const char *raw_tx, size_t size, int result_type, string& result) {
+bool signed_transaction_proxy::to_json(int result_type, bool compressed, string& result) {
     try {
-        auto trx = fc::raw::unpack<packed_transaction>(raw_tx, size);
-        if (result_type == 0) { //packed_transaction
-            result = fc::json::to_string(fc::variant(trx), fc::time_point::maximum());
-        } else if (result_type == 1) {
-            result = fc::json::to_string(fc::variant(trx.get_signed_transaction()), fc::time_point::maximum());
+        if (result_type == 0) {
+            result = fc::json::to_string(*trx, fc::time_point::maximum());
+        } else if (result_type == 1) {// packed_transaction
+            if (compressed) {
+                packed_transaction packed_trx(*trx, packed_transaction::compression_type::zlib);
+                result = fc::json::to_string(*trx, fc::time_point::maximum());
+            } else {
+                packed_transaction packed_trx(*trx, packed_transaction::compression_type::none);
+                result = fc::json::to_string(*trx, fc::time_point::maximum());
+            }
         } else {
             FC_ASSERT(false, "unknown unpack result type");
         }
