@@ -10,6 +10,107 @@
 using namespace fc;
 using namespace eosio::chain;
 
+class signed_transaction_impl {
+public:
+    signed_transaction_impl(
+        uint32_t expiration,
+        const char* ref_block_id,
+        size_t ref_block_id_size,
+        uint32_t max_net_usage_words, //fc::unsigned_int
+        uint8_t  max_cpu_usage_ms,    //
+        uint32_t delay_sec            //fc::unsigned_int
+    ) {
+        trx = std::make_shared<signed_transaction>();
+        trx->expiration = fc::time_point_sec(expiration);
+        trx->set_reference_block(fc::raw::unpack<block_id_type>(ref_block_id, ref_block_id_size));
+        trx->max_net_usage_words = max_net_usage_words;
+        trx->max_cpu_usage_ms = max_cpu_usage_ms;
+        trx->delay_sec = delay_sec;
+    }
+
+    signed_transaction_impl(signed_transaction_ptr& transaction) {
+        trx = transaction;
+    }
+
+    ~signed_transaction_impl() {
+
+    }
+
+    std::shared_ptr<signed_transaction> get_transaction() {
+        return trx;
+    }
+
+    string first_authorizer() {
+        return trx->first_authorizer().to_string();
+    }
+
+    void id(vector<char>& result) {
+        result = fc::raw::pack(trx->id());
+    }
+
+    void add_action(uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths) {
+        vector<permission_level> auths_;
+        for (auto auth : auths) {
+            auths_.emplace_back(permission_level{eosio::chain::name(auth.first), eosio::chain::name(auth.second)});
+        }
+        trx->actions.emplace_back(action(
+            auths_,
+            eosio::chain::name(account),
+            eosio::chain::name(name),
+            std::vector<char>(data, data+size)
+        ));
+    }
+
+    bool sign(const char *private_key, size_t size, const char *chain_id, size_t chain_id_size) {
+        try {
+            auto _private_key = fc::raw::unpack<fc::crypto::private_key>(private_key, size);
+            trx->sign(_private_key, chain_id_type(chain_id, chain_id_size));
+            return true;
+        }CATCH_AND_LOG_EXCEPTION()
+        return false;
+    }
+
+    void pack(bool compress, int pack_type, vector<char>& result) {
+        FC_ASSERT(pack_type == 0 || pack_type == 1, "unknown pack type");
+
+        if (pack_type == 0) { //signed_transaction
+            result = fc::raw::pack(*trx);
+            return;
+        }
+
+        packed_transaction::compression_type type;
+        if (compress) {
+            type = packed_transaction::compression_type::zlib;
+        } else {
+            type = packed_transaction::compression_type::none;
+        }
+        auto packed_trx = packed_transaction(*trx, type);
+        result = fc::raw::pack(packed_trx);
+    }
+
+    bool to_json(int result_type, bool compressed, string& result) {
+        try {
+            if (result_type == 0) {
+                result = fc::json::to_string(*trx, fc::time_point::maximum());
+            } else if (result_type == 1) {// packed_transaction
+                if (compressed) {
+                    packed_transaction packed_trx(*trx, packed_transaction::compression_type::zlib);
+                    result = fc::json::to_string(*trx, fc::time_point::maximum());
+                } else {
+                    packed_transaction packed_trx(*trx, packed_transaction::compression_type::none);
+                    result = fc::json::to_string(*trx, fc::time_point::maximum());
+                }
+            } else {
+                FC_ASSERT(false, "unknown unpack result type");
+            }
+            return true;
+        }CATCH_AND_LOG_EXCEPTION()
+        return false;
+    }
+private:
+    std::shared_ptr<signed_transaction> trx;
+};
+
 signed_transaction_proxy::signed_transaction_proxy(
     uint32_t expiration,
     const char* ref_block_id,
@@ -18,82 +119,48 @@ signed_transaction_proxy::signed_transaction_proxy(
     uint8_t  max_cpu_usage_ms,    //
     uint32_t delay_sec            //fc::unsigned_int
 ) {
-    trx = std::make_shared<signed_transaction>();
-    trx->expiration = fc::time_point_sec(expiration);
-    trx->set_reference_block(fc::raw::unpack<block_id_type>(ref_block_id, ref_block_id_size));
-    trx->max_net_usage_words = max_net_usage_words;
-    trx->max_cpu_usage_ms = max_cpu_usage_ms;
-    trx->delay_sec = delay_sec;
+    impl = std::make_shared<signed_transaction_impl>(
+        expiration,
+        ref_block_id,
+        ref_block_id_size,
+        max_net_usage_words,
+        max_cpu_usage_ms,
+        delay_sec
+    );
 }
 
 signed_transaction_proxy::signed_transaction_proxy(signed_transaction_ptr& transaction) {
-    trx = transaction;
+    impl = std::make_shared<signed_transaction_impl>(transaction);
 }
 
 signed_transaction_proxy::~signed_transaction_proxy() {
 
 }
 
+string signed_transaction_proxy::first_authorizer() {
+    return impl->first_authorizer();
+}
+
+std::shared_ptr<signed_transaction> signed_transaction_proxy::get_transaction() {
+    return impl->get_transaction();
+}
+
 void signed_transaction_proxy::id(vector<char>& result) {
-    result = fc::raw::pack(trx->id());
+    impl->id(result);
 }
 
 void signed_transaction_proxy::add_action(uint64_t account, uint64_t name, const char *data, size_t size, vector<std::pair<uint64_t, uint64_t>>& auths) {
-    vector<permission_level> auths_;
-    for (auto auth : auths) {
-        auths_.emplace_back(permission_level{eosio::chain::name(auth.first), eosio::chain::name(auth.second)});
-    }
-    trx->actions.emplace_back(action(
-        auths_,
-        eosio::chain::name(account),
-        eosio::chain::name(name),
-        std::vector<char>(data, data+size)
-    ));
+    impl->add_action(account, name, data, size, auths);
 }
 
 bool signed_transaction_proxy::sign(const char *private_key, size_t size, const char *chain_id, size_t chain_id_size) {
-    try {
-        auto _private_key = fc::raw::unpack<fc::crypto::private_key>(private_key, size);
-        trx->sign(_private_key, chain_id_type(chain_id, chain_id_size));
-        return true;
-    }CATCH_AND_LOG_EXCEPTION()
-    return false;
+    return impl->sign(private_key, size, chain_id, chain_id_size);
 }
 
 void signed_transaction_proxy::pack(bool compress, int pack_type, vector<char>& result) {
-    FC_ASSERT(pack_type == 0 || pack_type == 1, "unknown pack type");
-
-    if (pack_type == 0) { //signed_transaction
-        result = fc::raw::pack(*trx);
-        return;
-    }
-
-    packed_transaction::compression_type type;
-    if (compress) {
-        type = packed_transaction::compression_type::zlib;
-    } else {
-        type = packed_transaction::compression_type::none;
-    }
-    auto packed_trx = packed_transaction(*trx, type);
-    result = fc::raw::pack(packed_trx);
+    impl->pack(compress, pack_type, result);
 }
 
 bool signed_transaction_proxy::to_json(int result_type, bool compressed, string& result) {
-    try {
-        if (result_type == 0) {
-            result = fc::json::to_string(*trx, fc::time_point::maximum());
-        } else if (result_type == 1) {// packed_transaction
-            if (compressed) {
-                packed_transaction packed_trx(*trx, packed_transaction::compression_type::zlib);
-                result = fc::json::to_string(*trx, fc::time_point::maximum());
-            } else {
-                packed_transaction packed_trx(*trx, packed_transaction::compression_type::none);
-                result = fc::json::to_string(*trx, fc::time_point::maximum());
-            }
-        } else {
-            FC_ASSERT(false, "unknown unpack result type");
-        }
-        return true;
-    }CATCH_AND_LOG_EXCEPTION()
-    return false;
+    return impl->to_json(result_type, compressed, result);
 }

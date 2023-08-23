@@ -60,6 +60,10 @@ public:
         }
     }
 
+    string first_authorizer() {
+        return _ptp->get_signed_transaction().first_authorizer().to_string();
+    }
+
     signed_transaction_proxy *get_signed_transaction() {
         auto tx = _ptp->get_signed_transaction();
         auto stp = std::make_shared<signed_transaction>(tx);
@@ -101,6 +105,10 @@ packed_transaction_proxy::packed_transaction_proxy(const char *packed_tx, size_t
 
 packed_transaction_proxy::~packed_transaction_proxy() {
 
+}
+
+string packed_transaction_proxy::first_authorizer() {
+    return impl->first_authorizer();
 }
 
 signed_transaction_proxy *packed_transaction_proxy::get_signed_transaction() {

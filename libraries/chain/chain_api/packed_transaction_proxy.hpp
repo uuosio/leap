@@ -32,6 +32,7 @@ public:
 
     virtual ~packed_transaction_proxy();
 
+    virtual string first_authorizer();
     virtual signed_transaction_proxy *get_signed_transaction();
     virtual vector<char> pack();
     virtual string to_json();
